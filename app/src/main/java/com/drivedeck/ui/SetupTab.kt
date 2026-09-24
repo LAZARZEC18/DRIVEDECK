@@ -166,10 +166,9 @@ fun SetupTab(modifier: Modifier) {
         item {
             StepsCard(
                 listOf(
+                    "Install DRIVEDECK from the Google Play Store (the internal testing link). Android Auto only lists car apps that come from Play.",
                     "Open Android Auto settings: Settings → Connected devices → Android Auto (the button below tries to take you there).",
-                    "Scroll to the bottom and tap \"Version\" about 10 times, then OK to allow developer settings.",
-                    "Tap ⋮ (top right) → Developer settings → tick \"Unknown sources\".",
-                    "Back in Android Auto settings → Customise launcher → make sure DRIVEDECK is ticked.",
+                    "Customise launcher → make sure DRIVEDECK is ticked.",
                     "Plug into the car. DRIVEDECK is in the app launcher. Drag it next to Waze and YouTube Music.",
                 ),
                 button = "Open Android Auto settings" to { openAndroidAuto(ctx) },

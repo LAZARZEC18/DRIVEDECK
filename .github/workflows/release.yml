@@ -1,7 +1,11 @@
-name: Release APK
+name: Release
 
-# Every push to main builds a signed APK and publishes it as a GitHub Release.
-# Obtainium on the phone watches these releases and installs updates automatically.
+# Every push to main:
+#   1. runs the tests,
+#   2. builds the Google Play bundle (.aab, signed with the upload key) and a "DRIVEDECK Dev" APK,
+#   3. publishes both as a GitHub Release,
+#   4. uploads the bundle to the Play internal testing track once PLAY_SERVICE_ACCOUNT_JSON is set,
+#      so the phone gets the update from the Play Store automatically.
 on:
   push:
     branches: [ main ]
@@ -14,6 +18,12 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      UPLOAD_STORE_FILE: drivedeck-upload.jks
+      UPLOAD_KEY_ALIAS: drivedeck-upload
+      UPLOAD_STORE_PASSWORD: ${{ secrets.UPLOAD_STORE_PASSWORD }}
+      UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_STORE_PASSWORD }}
+      HAS_PLAY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -22,29 +32,46 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Restore signing key
+      - name: Restore signing keys
         env:
-          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          DEV_KEY_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          UPLOAD_KEY_B64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
         run: |
-          if [ -z "$KEYSTORE_B64" ]; then echo "Missing SIGNING_KEYSTORE_BASE64 secret" && exit 1; fi
+          if [ -z "$DEV_KEY_B64" ] || [ -z "$UPLOAD_KEY_B64" ]; then
+            echo "Missing SIGNING_KEYSTORE_BASE64 or UPLOAD_KEYSTORE_BASE64 secret" && exit 1
+          fi
           mkdir -p keystore
-          echo "$KEYSTORE_B64" | base64 -d > keystore/drivedeck-signing.keystore
+          echo "$DEV_KEY_B64" | base64 -d > keystore/drivedeck-signing.keystore
+          echo "$UPLOAD_KEY_B64" | base64 -d > keystore/drivedeck-upload.jks
 
       - name: Test
         run: ./gradlew testDebugUnitTest
 
-      - name: Build APK
+      - name: Build
         run: |
-          CODE=$((100 + GITHUB_RUN_NUMBER))
-          NAME="1.1.${GITHUB_RUN_NUMBER}"
+          CODE=$((300 + GITHUB_RUN_NUMBER))
+          NAME="1.2.${GITHUB_RUN_NUMBER}"
           echo "VERSION_NAME=$NAME" >> "$GITHUB_ENV"
-          ./gradlew assembleDebug -PdeckVersionCode=$CODE -PdeckVersionName=$NAME
-          cp app/build/outputs/apk/debug/app-debug.apk "DRIVEDECK-v$NAME.apk"
+          ./gradlew bundleRelease assembleDebug -PdeckVersionCode=$CODE -PdeckVersionName=$NAME
+          cp app/build/outputs/bundle/release/app-release.aab "DRIVEDECK-v$NAME.aab"
+          cp app/build/outputs/apk/debug/app-debug.apk "DRIVEDECK-Dev-v$NAME.apk"
 
-      - name: Publish release
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION_NAME }}
           name: DRIVEDECK v${{ env.VERSION_NAME }}
           body: ${{ github.event.head_commit.message }}
-          files: DRIVEDECK-v${{ env.VERSION_NAME }}.apk
+          files: |
+            DRIVEDECK-v${{ env.VERSION_NAME }}.aab
+            DRIVEDECK-Dev-v${{ env.VERSION_NAME }}.apk
+
+      - name: Upload to Google Play (internal testing)
+        if: env.HAS_PLAY == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.lazarzec.drivedeck
+          releaseFiles: DRIVEDECK-v${{ env.VERSION_NAME }}.aab
+          track: internal
+          status: completed

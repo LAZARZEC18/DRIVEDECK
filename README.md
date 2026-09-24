@@ -42,12 +42,12 @@ flowchart LR
     P[Phone app<br/>+ Android Auto] <-->|merge on open, after edits,<br/>every 15 min| G[(Private GitHub repo<br/>deck.json)]
     L[Laptop dashboard<br/>GitHub Pages] <--> G
     C[Chat / CLI<br/>tools/deckctl.py] <--> G
-    A[Code change pushed] --> CI[GitHub Actions:<br/>test + signed APK release] --> O[Obtainium on phone<br/>auto-updates app]
+    A[Code change pushed] --> CI[GitHub Actions:<br/>test + signed Play bundle] --> O[Play internal testing<br/>auto-updates app]
 ```
 
 - **Data:** one `deck.json` in a *private* repo. Every change is a commit, so there's full history and any change can be undone.
 - **Conflicts:** the phone, the dashboard and the CLI use the same merge rules (`DeckMerge`). Each item keeps its newest edit, deletes are tombstones, and trips, drives and plays are unions. Edit on your laptop while driving and nothing is lost.
-- **App updates:** every push to `main` runs the tests and publishes a signed APK as a GitHub Release. Obtainium installs it over the top, keeping your data.
+- **App updates:** every push to `main` runs the tests, builds a signed Play bundle and sends it to the Play internal testing track. The Play Store updates the app, keeping your data.
 
 ## Architecture
 
@@ -68,23 +68,34 @@ flowchart LR
 
 ## Install
 
-1. **Phone:** install the APK from [Releases](../../releases). Play Protect may block it because of the notification permission: in the Play Store, go to Profile → Play Protect → ⚙ → turn off *Scan apps*, install, then turn it back on.
-2. **Setup tab:** enable *Music & messages access* (Samsung: App info → ⋮ → *Allow restricted settings* first), allow location and notifications, and paste your sync token.
-3. **Android Auto:** Settings → Connected devices → Android Auto → tap *Version* 10× → ⋮ → Developer settings → tick **Unknown sources** → Customise launcher → tick DRIVEDECK.
-4. **Auto-updates:** install [Obtainium](https://github.com/ImranR98/Obtainium), then *Add app* → `https://github.com/LAZARZEC18/DRIVEDECK`.
+1. **Phone:** install DRIVEDECK from **Google Play** using the internal testing link (Android Auto only lists car apps installed from Play). Updates arrive through the Play Store.
+2. **Setup tab:** enable *Music & messages access* (Samsung: App info → ⋮ → *Allow restricted settings* first), allow location and notifications, and paste your sync token. Your places, music and history come back from sync.
+3. **Android Auto:** Settings → Connected devices → Android Auto → Customise launcher → tick DRIVEDECK.
+
+## Releases
+
+Every push to `main` runs the tests, then builds:
+
+| Build | Package | Use |
+|---|---|---|
+| `DRIVEDECK-vX.aab` | `com.lazarzec.drivedeck` | Google Play bundle, signed with the upload key. Uploaded to the Play **internal testing** track automatically once `PLAY_SERVICE_ACCOUNT_JSON` is set. |
+| `DRIVEDECK-Dev-vX.apk` | `com.lazarzec.drivedeck.dev` | Side-by-side dev build for the phone screen and emulators. Android Auto won't list it. |
+
+CI secrets: `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_STORE_PASSWORD` (Play upload key), `SIGNING_KEYSTORE_BASE64` (dev key), `PLAY_SERVICE_ACCOUNT_JSON` (optional, Play upload). Locally, the upload key lives in the git-ignored `keystore/` folder with `keystore/upload.properties`.
 
 ## Build & test
 
 ```bash
 ./gradlew testDebugUnitTest      # 57 tests: predictor, merge, trip maths, stats, ETA, cameras, FuelWatch, car templates, UI renders
 ./gradlew lintDebug              # clean
-./gradlew assembleDebug
+./gradlew assembleDebug          # DRIVEDECK Dev
+./gradlew bundleRelease          # Play bundle (needs keystore/upload.properties)
 ./gradlew testDebugUnitTest -Proborazzi.record   # re-render docs/screenshots
 ```
 
 ## Privacy
 
-No accounts and no servers of our own. Data lives on your phone and in *your* private GitHub repo. WhatsApp message text is only held in memory while unread, and is never saved or synced.
+Full policy: [lazarzec18.github.io/DRIVEDECK/privacy.html](https://lazarzec18.github.io/DRIVEDECK/privacy.html). No accounts and no servers of our own. Data lives on your phone and in *your* private GitHub repo. WhatsApp message text is only held in memory while unread, and is never saved or synced.
 
 ## Limits
 

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRIVEDECK Privacy Policy</title>
+<style>
+  :root { --bg:#0b0d0f; --card:#14181c; --text:#e8ecef; --muted:#9aa4ad; --accent:#00e676; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:40px 16px 64px; }
+  h1 { font-size:28px; letter-spacing:.04em; margin:0 0 4px; }
+  h1 span { color:var(--accent); }
+  h2 { font-size:18px; margin:32px 0 8px; color:var(--accent); }
+  p, li { color:var(--text); }
+  .muted { color:var(--muted); }
+  table { width:100%; border-collapse:collapse; background:var(--card); border-radius:10px; overflow:hidden; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #22282e; vertical-align:top; font-size:15px; }
+  th { color:var(--muted); font-weight:600; }
+  a { color:var(--accent); }
+  @media (max-width:560px){ th:nth-child(3), td:nth-child(3){ display:none; } }
+</style>
+</head>
+<body>
+<main>
+<h1>DRIVE<span>DECK</span> Privacy Policy</h1>
+<p class="muted">Effective 24 September 2026 · App: DRIVEDECK (com.lazarzec.drivedeck) · Developer: Lazar, Perth, Western Australia</p>
+
+<p>DRIVEDECK is a personal Android Auto companion app. It has no accounts, no advertising, no analytics and no servers run by the developer. Your data stays on your phone and, if you turn on sync, in a private GitHub repository that <strong>you</strong> own.</p>
+
+<h2>What the app uses and why</h2>
+<table>
+<tr><th>Data</th><th>Why</th><th>Where it goes</th></tr>
+<tr><td>Precise location</td><td>Trip computer (speed, average and max speed, distance), ETA, nearby fuel prices and speed camera alerts. Only used while a trip is running, shown by an ongoing notification.</td><td>Stays on the phone. Finished drive summaries are saved to your sync repo if sync is on.</td></tr>
+<tr><td>Notifications (with your permission)</td><td>Show WhatsApp messages on the car screen, control YouTube Music, and read the live ETA from Waze or Google Maps.</td><td>Message text is kept in memory only while unread and is never saved or synced. Song titles you play are logged for your weekly stats.</td></tr>
+<tr><td>Places, music shortcuts, fuel fill-ups, settings</td><td>The things you add in the app.</td><td>On the phone, and your private sync repo if sync is on.</td></tr>
+<tr><td>GitHub access token (optional)</td><td>Syncs your data with your own private repository.</td><td>Stored on the phone only. Sent only to api.github.com.</td></tr>
+</table>
+
+<h2>Services the app talks to</h2>
+<ul>
+  <li><strong>GitHub</strong> (api.github.com): your own private data repository, only if you set up sync.</li>
+  <li><strong>FuelWatch WA</strong> (fuelwatch.wa.gov.au): public fuel prices. Your suburb or location area may be sent.</li>
+  <li><strong>OpenStreetMap services</strong>: Photon (photon.komoot.io) for place search, Overpass for speed camera locations, and OSRM (router.project-osrm.org) for road distance and no-traffic ETA. Search text or coordinates are sent to answer the request.</li>
+  <li><strong>Waze, Google Maps, YouTube Music and WhatsApp</strong> on your phone, when you open them from DRIVEDECK. Their own privacy policies apply.</li>
+</ul>
+<p>None of these services receive your name, contacts or messages from DRIVEDECK.</p>
+
+<h2>Sharing and selling</h2>
+<p>DRIVEDECK does not sell or share personal data, and does not use it for advertising or tracking.</p>
+
+<h2>Keeping and deleting data</h2>
+<p>Uninstalling the app deletes everything it stored on the phone. Data in your sync repository is under your control: delete the repository (or the <code>deck.json</code> file) on GitHub to remove it. Revoking the GitHub token stops sync straight away.</p>
+
+<h2>Children</h2>
+<p>DRIVEDECK is made for licensed drivers and is not directed at children.</p>
+
+<h2>Contact</h2>
+<p>Questions or requests: open an issue at <a href="https://github.com/LAZARZEC18/DRIVEDECK/issues">github.com/LAZARZEC18/DRIVEDECK/issues</a>.</p>
+</main>
+</body>
+</html>
