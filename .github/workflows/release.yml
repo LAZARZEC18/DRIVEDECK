@@ -37,12 +37,17 @@ jobs:
           DEV_KEY_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
           UPLOAD_KEY_B64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
         run: |
-          if [ -z "$DEV_KEY_B64" ] || [ -z "$UPLOAD_KEY_B64" ]; then
-            echo "Missing SIGNING_KEYSTORE_BASE64 or UPLOAD_KEYSTORE_BASE64 secret" && exit 1
-          fi
+          if [ -z "$DEV_KEY_B64" ]; then echo "Missing SIGNING_KEYSTORE_BASE64 secret" && exit 1; fi
           mkdir -p keystore
           echo "$DEV_KEY_B64" | base64 -d > keystore/drivedeck-signing.keystore
-          echo "$UPLOAD_KEY_B64" | base64 -d > keystore/drivedeck-upload.jks
+          # The Play bundle is only built once the upload key secrets are added.
+          if [ -n "$UPLOAD_KEY_B64" ] && [ -n "$UPLOAD_STORE_PASSWORD" ]; then
+            echo "$UPLOAD_KEY_B64" | base64 -d > keystore/drivedeck-upload.jks
+            echo "HAS_UPLOAD_KEY=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::UPLOAD_KEYSTORE_BASE64 / UPLOAD_STORE_PASSWORD not set: skipping the Play bundle"
+            echo "HAS_UPLOAD_KEY=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Test
         run: ./gradlew testDebugUnitTest
@@ -52,9 +57,12 @@ jobs:
           CODE=$((300 + GITHUB_RUN_NUMBER))
           NAME="1.2.${GITHUB_RUN_NUMBER}"
           echo "VERSION_NAME=$NAME" >> "$GITHUB_ENV"
-          ./gradlew bundleRelease assembleDebug -PdeckVersionCode=$CODE -PdeckVersionName=$NAME
-          cp app/build/outputs/bundle/release/app-release.aab "DRIVEDECK-v$NAME.aab"
+          ./gradlew assembleDebug -PdeckVersionCode=$CODE -PdeckVersionName=$NAME
           cp app/build/outputs/apk/debug/app-debug.apk "DRIVEDECK-Dev-v$NAME.apk"
+          if [ "$HAS_UPLOAD_KEY" = "true" ]; then
+            ./gradlew bundleRelease -PdeckVersionCode=$CODE -PdeckVersionName=$NAME
+            cp app/build/outputs/bundle/release/app-release.aab "DRIVEDECK-v$NAME.aab"
+          fi
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
@@ -62,12 +70,13 @@ jobs:
           tag_name: v${{ env.VERSION_NAME }}
           name: DRIVEDECK v${{ env.VERSION_NAME }}
           body: ${{ github.event.head_commit.message }}
+          fail_on_unmatched_files: false
           files: |
             DRIVEDECK-v${{ env.VERSION_NAME }}.aab
             DRIVEDECK-Dev-v${{ env.VERSION_NAME }}.apk
 
       - name: Upload to Google Play (internal testing)
-        if: env.HAS_PLAY == 'true'
+        if: env.HAS_PLAY == 'true' && env.HAS_UPLOAD_KEY == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
