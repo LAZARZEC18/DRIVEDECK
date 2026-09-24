@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DRIVEDECK mark: a speedometer arc with the needle pointing up-right. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- dim full gauge track -->
+    <path android:pathData="M33,66 A23,23 0 1,1 75,66"
+        android:strokeColor="#2A3340" android:strokeWidth="7" android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- lit portion -->
+    <path android:pathData="M33,66 A23,23 0 0,1 54,33.6"
+        android:strokeColor="#00E676" android:strokeWidth="7" android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- needle -->
+    <path android:pathData="M54,56.6 L67,42"
+        android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M54,56.6m-5,0a5,5 0 1,0 10,0a5,5 0 1,0 -10,0" />
+    <!-- deck base line -->
+    <path android:pathData="M40,76 L68,76"
+        android:strokeColor="#00E676" android:strokeWidth="4" android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

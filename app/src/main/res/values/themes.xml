@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.DriveDeck" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0A0D12</item>
+        <item name="android:navigationBarColor">#0A0D12</item>
+        <item name="android:windowBackground">@color/deck_bg</item>
+    </style>
+</resources>
