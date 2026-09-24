@@ -16,6 +16,18 @@ android {
         versionName = "1.0.0"
     }
 
+    // Every build must be signed with the SAME key, or Android refuses to update the installed app.
+    // Keep keystore/drivedeck-signing.keystore safe (it is git-ignored, never commit it).
+    val deckKeystore = rootProject.file("keystore/drivedeck-signing.keystore")
+    if (deckKeystore.exists()) {
+        signingConfigs.getByName("debug") {
+            storeFile = deckKeystore
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
