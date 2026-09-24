@@ -12,8 +12,9 @@ android {
         applicationId = "com.drivedeck"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        // CI passes -PdeckVersionCode / -PdeckVersionName so every release is a newer version.
+        versionCode = (findProperty("deckVersionCode") as String?)?.toInt() ?: 1
+        versionName = (findProperty("deckVersionName") as String?) ?: "1.0.0"
     }
 
     // Every build must be signed with the SAME key, or Android refuses to update the installed app.
