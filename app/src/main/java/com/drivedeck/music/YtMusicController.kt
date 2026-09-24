@@ -13,10 +13,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.view.KeyEvent
-import android.service.notification.NotificationListenerService
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.session.MediaControllerCompat
+import android.view.KeyEvent
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import com.drivedeck.data.MusicFavorite
@@ -240,7 +239,7 @@ class YtMusicController(context: Context) {
             when (fav.kind) {
                 MusicKind.PLAYLIST -> {
                     extras.putString(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/playlist")
-                    extras.putString(MediaStore.EXTRA_MEDIA_PLAYLIST, q)
+                    @Suppress("DEPRECATION") extras.putString(MediaStore.EXTRA_MEDIA_PLAYLIST, q)
                 }
                 MusicKind.ARTIST -> {
                     extras.putString(MediaStore.EXTRA_MEDIA_FOCUS, MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE)
@@ -256,9 +255,3 @@ class YtMusicController(context: Context) {
         }
     }
 }
-
-/**
- * Empty on purpose. Android only lets apps see other apps' media sessions (to show and control
- * what YouTube Music is playing) if they hold notification-listener access. We never read notifications.
- */
-class MediaListenerService : NotificationListenerService()

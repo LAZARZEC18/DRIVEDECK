@@ -15,19 +15,20 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
 import androidx.core.net.toUri
-import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.drivedeck.R
 import com.drivedeck.data.DeckRepository
 import com.drivedeck.data.Place
 import com.drivedeck.location.LocationHelper
-import com.drivedeck.music.YtMusicController
 import com.drivedeck.nav.Geo
 import com.drivedeck.nav.NavLinks
 import com.drivedeck.smart.RoutinePredictor
+import com.drivedeck.stats.Fmt
+import com.drivedeck.sync.SyncManager
+import com.drivedeck.trip.Journey
+import com.drivedeck.trip.TripService
 import com.drivedeck.ui.iconRes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -38,39 +39,35 @@ import java.time.ZonedDateTime
 /**
  * The car's home screen: "Where to?"
  *
- *  - Tile 1 is the smart suggestion (highlighted green) when your routine makes one obvious.
+ *  - Tile 1 is the smart suggestion (highlighted green): a place you sent to the car from the
+ *    laptop/chat, or else the one your routine makes obvious.
  *  - The rest are your places, ordered by how likely you are to want them right now.
  *  - One tap hands the destination to the car's navigation app (Waze) and starts the drive.
- *  - Action strip: Music hub + quick play/pause.
+ *  - Last tile "More": trip computer, fuel prices, WhatsApp, weekly stats, recent songs.
+ *  - Action strip: search any destination + Music.
+ *  - Opening this screen starts the trip computer.
  */
 class HomeScreen(carContext: CarContext) : Screen(carContext) {
 
     private val repo = DeckRepository.get(carContext)
     private val predictor = RoutinePredictor()
-    private val music = YtMusicController(carContext)
-    private var musicWatch: AutoCloseable? = null
+    private val sync = SyncManager.get(carContext)
 
     init {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // Coming back from Waze: time, location and data may all have changed.
                 invalidate()
-                launch { combine(repo.places, repo.trips) { _, _ -> }.drop(1).collect { invalidate() } }
-                // Suggestions depend on the clock and on where you are, so refresh every minute.
+                sync.requestSync() // pick up anything sent from the laptop or chat
+                TripService.start(carContext) // every drive gets recorded
+                launch { combine(repo.places, repo.trips, repo.nextUp) { _, _, _ -> }.drop(1).collect { invalidate() } }
+                // Live trip numbers on the More tile, and suggestions that follow the clock.
                 while (true) {
-                    delay(60_000)
+                    delay(if (TripService.isRunning.value) 5_000 else 60_000)
                     invalidate()
                 }
             }
         }
-        lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) {
-                musicWatch = music.observe { invalidate() }
-            }
-            override fun onStop(owner: LifecycleOwner) {
-                musicWatch?.close(); musicWatch = null
-            }
-        })
     }
 
     override fun onGetTemplate(): Template {
@@ -80,6 +77,7 @@ class HomeScreen(carContext: CarContext) : Screen(carContext) {
                 .setTitle("DRIVEDECK")
                 .setHeaderAction(Action.APP_ICON)
                 .setIcon(CarUi.icon(carContext, R.drawable.ic_pin, CarUi.ACCENT))
+                .addAction(Action.Builder().setTitle("More").setOnClickListener { screenManager.push(HubScreen(carContext)) }.build())
                 .build()
         }
 
@@ -90,7 +88,10 @@ class HomeScreen(carContext: CarContext) : Screen(carContext) {
         val exclude = setOfNotNull(atPlace?.id)
         val trips = repo.trips.value
 
-        val suggestion = predictor.suggest(trips, now, ids, exclude)
+        // A destination queued from the laptop/chat ("Send to car") beats the learned routine.
+        val queuedId = repo.nextUp.value?.activePlaceId(System.currentTimeMillis())?.takeIf { it in ids }
+        val suggestion = queuedId?.let { RoutinePredictor.Suggestion(it, 1.0, 1.0, "Sent to car") }
+            ?: predictor.suggest(trips, now, ids, exclude)
         val rank = predictor.rank(trips, now, ids, exclude).withIndex().associate { it.value.placeId to it.index }
 
         // Suggested first, then by likelihood right now, then in your own order. The place you're
@@ -105,7 +106,7 @@ class HomeScreen(carContext: CarContext) : Screen(carContext) {
         ).map { it.value }
 
         val items = ItemList.Builder()
-        ordered.take(CarUi.gridLimit(carContext)).forEach { place ->
+        ordered.take(CarUi.gridLimit(carContext) - 1).forEach { place ->
             val isSuggested = place.id == suggestion?.placeId
             val distance = LocationHelper.distanceTo(here, place)?.let(Geo::formatDistance)
             val text = when {
@@ -131,23 +132,28 @@ class HomeScreen(carContext: CarContext) : Screen(carContext) {
             )
         }
 
-        val playing = music.nowPlaying()
+        val live = TripService.live.value
+        items.addItem(
+            GridItem.Builder()
+                .setTitle("More")
+                .setText(live?.let { "${Fmt.kmh(it.speedKmh)} · avg ${Fmt.kmh(it.avgKmh)}" } ?: "Trip · Fuel · WhatsApp · Stats")
+                .setImage(CarUi.icon(carContext, R.drawable.ic_apps, CarColor.DEFAULT), GridItem.IMAGE_TYPE_LARGE)
+                .setOnClickListener { screenManager.push(HubScreen(carContext)) }
+                .build(),
+        )
+
         val actions = ActionStrip.Builder()
+            .addAction(
+                Action.Builder()
+                    .setIcon(CarUi.icon(carContext, R.drawable.ic_search))
+                    .setOnClickListener { screenManager.push(PlaceSearchScreen(carContext)) }
+                    .build(),
+            )
             .addAction(
                 Action.Builder()
                     .setTitle("Music")
                     .setIcon(CarUi.icon(carContext, R.drawable.ic_music))
                     .setOnClickListener { screenManager.push(MusicScreen(carContext)) }
-                    .build(),
-            )
-            .addAction(
-                Action.Builder()
-                    .setIcon(CarUi.icon(carContext, if (playing?.isPlaying == true) R.drawable.ic_pause else R.drawable.ic_play))
-                    .setOnClickListener {
-                        if (!music.togglePlayPause()) {
-                            CarToast.makeText(carContext, "Open Music to start something", CarToast.LENGTH_SHORT).show()
-                        }
-                    }
                     .build(),
             )
             .build()
@@ -161,7 +167,7 @@ class HomeScreen(carContext: CarContext) : Screen(carContext) {
     }
 
     private fun navigateTo(place: Place) {
-        repo.logTrip(place.id)
+        Journey.begin(carContext, place)
         try {
             carContext.startCarApp(Intent(CarContext.ACTION_NAVIGATE, NavLinks.geo(place).toUri()))
         } catch (e: Exception) {

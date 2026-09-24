@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
+import com.drivedeck.data.NavApp
 import com.drivedeck.data.Place
 import java.net.URLEncoder
 import java.util.Locale
@@ -50,17 +51,42 @@ object Geo {
     }
 }
 
-/** Phone-side navigation: opens Waze directly (falls back to the browser link if Waze isn't installed). */
+/** Phone-side navigation: hands a destination (or a search) to Waze or Google Maps. */
 object PhoneNavigator {
-    fun openInWaze(context: Context, place: Place) {
-        val intent = Intent(Intent.ACTION_VIEW, NavLinks.waze(place).toUri())
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
-            context.startActivity(Intent(intent).setPackage(WAZE_PACKAGE))
-        } catch (_: ActivityNotFoundException) {
-            try { context.startActivity(intent) } catch (_: ActivityNotFoundException) { }
+    const val WAZE_PACKAGE = "com.waze"
+    const val MAPS_PACKAGE = "com.google.android.apps.maps"
+
+    fun open(context: Context, place: Place, app: NavApp) = when (app) {
+        NavApp.WAZE -> openInWaze(context, place)
+        NavApp.GOOGLE_MAPS -> openInGoogleMaps(context, place)
+    }
+
+    fun openInWaze(context: Context, place: Place) =
+        start(context, NavLinks.waze(place).toUri(), WAZE_PACKAGE)
+
+    /** Starts Google Maps turn-by-turn straight away (driving mode). */
+    fun openInGoogleMaps(context: Context, place: Place) {
+        val q = if (place.hasCoords) "${place.lat},${place.lng}" else place.address.ifBlank { place.name }
+        start(context, "google.navigation:q=${java.net.URLEncoder.encode(q, "UTF-8")}&mode=d".toUri(), MAPS_PACKAGE,
+            fallback = "https://www.google.com/maps/dir/?api=1&destination=${java.net.URLEncoder.encode(q, "UTF-8")}&travelmode=driving".toUri())
+    }
+
+    /** Lets the app's own search handle anything our search didn't find. */
+    fun searchIn(context: Context, query: String, app: NavApp) {
+        val q = java.net.URLEncoder.encode(query, "UTF-8")
+        when (app) {
+            NavApp.WAZE -> start(context, "https://waze.com/ul?q=$q".toUri(), WAZE_PACKAGE)
+            NavApp.GOOGLE_MAPS -> start(context, "geo:0,0?q=$q".toUri(), MAPS_PACKAGE,
+                fallback = "https://www.google.com/maps/search/?api=1&query=$q".toUri())
         }
     }
 
-    const val WAZE_PACKAGE = "com.waze"
+    private fun start(context: Context, uri: android.net.Uri, pkg: String, fallback: android.net.Uri = uri) {
+        val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(Intent(intent).setPackage(pkg))
+        } catch (_: ActivityNotFoundException) {
+            try { context.startActivity(Intent(Intent.ACTION_VIEW, fallback).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: ActivityNotFoundException) { }
+        }
+    }
 }

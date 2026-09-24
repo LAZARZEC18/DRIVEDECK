@@ -15,6 +15,14 @@ internal object CarUi {
     fun icon(ctx: CarContext, @DrawableRes res: Int, tint: CarColor? = CarColor.DEFAULT): CarIcon =
         CarIcon.Builder(IconCompat.createWithResource(ctx, res)).apply { tint?.let { setTint(it) } }.build()
 
+    fun listLimit(ctx: CarContext, fallback: Int = 6): Int = try {
+        if (ctx.carAppApiLevel >= 2) {
+            ctx.getCarService(ConstraintManager::class.java).getContentLimit(ConstraintManager.CONTENT_LIMIT_TYPE_LIST)
+        } else fallback
+    } catch (_: Exception) {
+        fallback
+    }
+
     /** How many grid items this car allows (varies by car and whether you're moving). */
     fun gridLimit(ctx: CarContext, fallback: Int = 6): Int = try {
         if (ctx.carAppApiLevel >= 2) {

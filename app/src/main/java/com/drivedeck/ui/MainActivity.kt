@@ -2,8 +2,8 @@ package com.drivedeck.ui
 
 import android.graphics.Color
 import android.os.Bundle
-import androidx.activity.SystemBarStyle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Row
@@ -25,10 +25,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -52,8 +52,10 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Tab(val label: String, val icon: Int) {
-    PLACES("Places", R.drawable.ic_navigate),
+    DRIVE("Drive", R.drawable.ic_navigate),
     MUSIC("Music", R.drawable.ic_music),
+    STATS("Stats", R.drawable.ic_chart),
+    FUEL("Fuel", R.drawable.ic_fuel),
     SETUP("Setup", R.drawable.ic_setup),
 }
 
@@ -62,13 +64,19 @@ private enum class Tab(val label: String, val icon: Int) {
 internal fun DeckApp(initialTab: Int = 0) {
     var tab by rememberSaveable { mutableIntStateOf(initialTab) }
     val snackbar = remember { SnackbarHostState() }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    // Pull anything changed on the laptop or in chat whenever the app comes to the front.
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        com.drivedeck.sync.SyncManager.get(ctx).requestSync()
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             CenterAlignedTopAppBar(
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -95,7 +103,7 @@ internal fun DeckApp(initialTab: Int = 0) {
                         selected = tab == i,
                         onClick = { tab = i },
                         icon = { Icon(painterResource(t.icon), t.label) },
-                        label = { Text(t.label) },
+                        label = { Text(t.label, maxLines = 1) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.onPrimary,
                             indicatorColor = DeckColors.Accent,
@@ -107,8 +115,10 @@ internal fun DeckApp(initialTab: Int = 0) {
     ) { padding ->
         val m = Modifier.padding(padding)
         when (Tab.entries[tab]) {
-            Tab.PLACES -> PlacesTab(m, snackbar)
+            Tab.DRIVE -> PlacesTab(m, snackbar)
             Tab.MUSIC -> MusicTab(m, snackbar)
+            Tab.STATS -> StatsTab(m)
+            Tab.FUEL -> FuelTab(m, snackbar)
             Tab.SETUP -> SetupTab(m)
         }
     }

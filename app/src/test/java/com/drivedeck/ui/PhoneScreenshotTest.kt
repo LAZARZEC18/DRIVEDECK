@@ -34,7 +34,9 @@ class PhoneScreenshotTest {
         compose.onRoot().captureRoboImage("$out/$name.png")
     }
 
-    @Test fun places() = shoot(0, "phone_places")
+    @Test fun drive() = shoot(0, "phone_drive")
     @Test fun music() = shoot(1, "phone_music")
-    @Test fun setup() = shoot(2, "phone_setup")
+    @Test fun stats() = shoot(2, "phone_stats")
+    @Test fun fuel() = shoot(3, "phone_fuel")
+    @Test fun setup() = shoot(4, "phone_setup")
 }

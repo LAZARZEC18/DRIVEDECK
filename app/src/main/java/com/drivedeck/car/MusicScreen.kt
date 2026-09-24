@@ -48,8 +48,18 @@ class MusicScreen(carContext: CarContext) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
         val favs = repo.music.value
-        val items = ItemList.Builder().setNoItemsMessage("Add playlists and artists in the DRIVEDECK phone app")
-        favs.take(CarUi.gridLimit(carContext)).forEach { fav ->
+        val items = ItemList.Builder()
+        items.addItem(
+            GridItem.Builder().setTitle("Search").setText("Any song")
+                .setImage(CarUi.icon(carContext, R.drawable.ic_search, CarColor.DEFAULT), GridItem.IMAGE_TYPE_LARGE)
+                .setOnClickListener { screenManager.push(MusicSearchScreen(carContext)) }.build(),
+        )
+        items.addItem(
+            GridItem.Builder().setTitle("Recent").setText("${repo.recents.value.size} songs")
+                .setImage(CarUi.icon(carContext, R.drawable.ic_history, CarColor.DEFAULT), GridItem.IMAGE_TYPE_LARGE)
+                .setOnClickListener { screenManager.push(RecentSongsScreen(carContext)) }.build(),
+        )
+        favs.take(CarUi.gridLimit(carContext) - 2).forEach { fav ->
             items.addItem(
                 GridItem.Builder()
                     .setTitle(fav.name)

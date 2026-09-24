@@ -102,6 +102,16 @@ object LocationHelper {
         }.getOrNull()
     }
 
+    /** Coordinates -> suburb name (e.g. "Morley"), for FuelWatch. */
+    @Suppress("DEPRECATION")
+    fun reverseSuburb(context: Context, lat: Double, lng: Double): String? {
+        if (!Geocoder.isPresent()) return null
+        return runCatching {
+            Geocoder(context, Locale.getDefault()).getFromLocation(lat, lng, 1)?.firstOrNull()
+                ?.let { it.locality ?: it.subLocality }
+        }.getOrNull()
+    }
+
     /** Coordinates -> a readable one-line address. */
     @Suppress("DEPRECATION")
     suspend fun reverseGeocode(context: Context, lat: Double, lng: Double): String? = withContext(Dispatchers.IO) {

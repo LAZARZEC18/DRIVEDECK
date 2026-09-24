@@ -5,20 +5,31 @@
     <!-- Smart suggestions: know which saved place you're at, and show distances. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Geocoding addresses into coordinates. -->
+    <!-- Geocoding, place search, FuelWatch prices, route ETAs and sync. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Trip computer: keeps GPS running while Waze is on screen. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Package visibility (Android 11+): we talk to Waze and YouTube Music. -->
     <queries>
         <package android:name="com.waze" />
         <package android:name="com.google.android.apps.youtube.music" />
         <package android:name="com.google.android.projection.gearhead" />
+        <package android:name="com.google.android.apps.maps" />
+        <package android:name="com.whatsapp" />
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
         <intent>
             <action android:name="android.media.browse.MediaBrowserService" />
         </intent>
     </queries>
 
     <application
+        android:name=".DriveDeckApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
@@ -57,7 +68,13 @@
             android:name="androidx.car.app.minCarApiLevel"
             android:value="1" />
 
-        <!-- Lets DRIVEDECK see/control YouTube Music's media session. Never reads notifications. -->
+        <!-- Trip computer (speed, averages, time to destination). -->
+        <service
+            android:name=".trip.TripService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- Music control + song stats, WhatsApp chats on the car screen, live Waze/Maps ETA. -->
         <service
             android:name=".music.MediaListenerService"
             android:exported="true"

@@ -1,6 +1,7 @@
 package com.drivedeck.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,15 +36,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -55,6 +57,7 @@ import com.drivedeck.R
 import com.drivedeck.data.DeckRepository
 import com.drivedeck.data.MusicFavorite
 import com.drivedeck.data.MusicKind
+import com.drivedeck.music.MusicActions
 import com.drivedeck.music.YtMusicController
 import kotlinx.coroutines.launch
 
@@ -64,6 +67,8 @@ fun MusicTab(modifier: Modifier, snackbar: SnackbarHostState) {
     val repo = remember { DeckRepository.get(ctx) }
     val music = remember { YtMusicController(ctx) }
     val favs by repo.music.collectAsStateWithLifecycle()
+    val recents by repo.recents.collectAsStateWithLifecycle()
+    var songQuery by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     var editing by remember { mutableStateOf<MusicFavorite?>(null) }
     var isNew by remember { mutableStateOf(false) }
@@ -96,7 +101,43 @@ fun MusicTab(modifier: Modifier, snackbar: SnackbarHostState) {
                     )
                 }
             }
-            item { SectionLabel("ONE-TAP MUSIC", "${minOf(favs.size, 6)} ON CAR SCREEN") }
+            item {
+                OutlinedTextField(
+                    songQuery, { songQuery = it },
+                    placeholder = { Text("Play any song, artist or album") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_search), null) },
+                    trailingIcon = {
+                        if (songQuery.isNotBlank()) TextButton(onClick = {
+                            val q = songQuery
+                            scope.launch { snackbar.showSnackbar(MusicActions.playSearch(ctx, q, allowActivityFallback = true).message) }
+                            songQuery = ""
+                        }) { Text("Play") }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (recents.isNotEmpty()) {
+                item { SectionLabel("RECENT SONGS", "${recents.size} / 20") }
+                items(recents, key = { "r:" + it.key }) { song ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .clickable { scope.launch { snackbar.showSnackbar(MusicActions.playRecent(ctx, song).message) } }
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(painterResource(R.drawable.ic_song), null, tint = DeckColors.Accent, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
+                            song.artist?.let { Text(it, maxLines = 1, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        }
+                        Icon(painterResource(R.drawable.ic_play), "Play", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            item { SectionLabel("PLAYLISTS & SHORTCUTS", "${minOf(favs.size, 4)} ON CAR HOME") }
             items(favs, key = { it.id }) { fav ->
                 Card(
                     onClick = { isNew = false; editing = fav },

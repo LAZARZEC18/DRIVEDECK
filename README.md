@@ -2,9 +2,9 @@
 
 # DRIVEDECK
 
-**A smarter Android Auto home screen. One tap to your usual destination, one tap to your music.**
+**An Android Auto companion that gives your car what it's missing: one-tap destinations that learn your routine, a real trip computer, live fuel prices, speed camera alerts, WhatsApp on the car screen, YouTube Music at a tap, and weekly driving stats. Everything syncs between your phone, a laptop dashboard and chat.**
 
-Kotlin · Jetpack Compose · Android for Cars App Library · on-device routine learning
+Kotlin · Jetpack Compose · Android for Cars App Library · GitHub-backed sync · 57 automated tests
 
 ![DRIVEDECK phone app](docs/screenshots/hero.png)
 
@@ -12,98 +12,86 @@ Kotlin · Jetpack Compose · Android for Cars App Library · on-device routine l
 
 ---
 
-## Why
+## What it does
 
-Android Auto gets the basics wrong for daily driving:
-
-- **Navigation by voice is unreliable.** Asking Assistant for your usual places often ends in the wrong result, or in Google Maps when you wanted Waze.
-- **Music is hard to reach.** Finding a specific playlist while driving takes too many taps and menus.
-- **It doesn't learn.** You drive the same routes every week, and it still asks every time.
-
-DRIVEDECK puts the right destination and the right music **one tap away** on the car display, and learns your routine as you drive.
-
-## Features
-
-| | |
+### In the car (Android Auto)
+| Screen | What you get |
 |---|---|
-| **Smart "right now" suggestion** | Learns from your trips by time of day, weekday and recency. Monday 8 am suggests **Greenhse**, Tuesday 6 pm suggests **Gym**. The suggested tile is highlighted green and placed first. |
-| **One-tap Waze navigation** | Tap a place on the car screen and DRIVEDECK hands exact coordinates to Waze, which starts driving immediately. No voice recognition, no search results to pick from. |
-| **Context-aware ordering** | Places are sorted by how likely you are to want them right now. The place you're already at goes last, so there's no "Go home" when you're home. |
-| **YouTube Music hub** | Your playlists, artists and mixes as big car-screen tiles. One tap starts playback through YouTube Music's media session (the same mechanism Google Assistant uses), with play/pause and skip controls. |
-| **Phone setup app** | Add places by address or "I'm here now" GPS pin, manage music shortcuts, see what the app has learned, and a guided setup checklist. |
-| **Private by design** | No account and no server. Everything stays on your phone. |
+| **Where to?** | Your places as big tiles. The first tile is what you usually do *right now* (learned from your trips), or a place you sent from your laptop. One tap and Waze or Google Maps starts driving. |
+| **Search** | Search any place or address, with results nearest first, or hand the words straight to Waze or Maps. |
+| **Trip computer** | Live speed, **average speed** (overall and while moving), **max speed**, distance, moving vs stopped time. Records every drive automatically. |
+| **Smart ETA** | Three arrival times side by side: **with traffic** (read live from Waze or Maps), **your ETA** (from how long *you* usually take at this time of day), and **no traffic**. |
+| **Speed cameras** | Voice alert "Speed camera ahead, 60 zone" for fixed and red-light cameras on your road, plus a map of the cameras near you. |
+| **Fuel** | Cheapest fuel near you **today and tomorrow** from FuelWatch (WA), on a map. Tap to drive there. |
+| **WhatsApp** | Who messaged and how many new messages, **read aloud**, one-tap quick replies. Full text shows when you're parked. |
+| **Music** | Your YouTube Music playlists, song search, and your **last 20 songs** as one-tap tiles. |
+| **This week** | Km, drives, time behind the wheel, average and top speed, fuel spend, songs played. |
 
-## How it works
+### On the phone
+**Drive** (search, places, live trip) · **Music** (search, recents, playlists) · **Stats** (weekly review with charts, drive history, music stats) · **Fuel** (live prices, fill-up log, L/100km, cost per km) · **Setup** (sync, permissions, car settings).
+
+### On the laptop
+The [**dashboard**](https://lazarzec18.github.io/DRIVEDECK/): weekly overview and charts, **Send to car**, edit places and music, drive history, fuel log and settings. Changes reach the phone within seconds.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+## How sync works
 
 ```mermaid
 flowchart LR
-    subgraph Phone
-        A[Phone app<br/>Compose] --> R[(DeckRepository<br/>places · music · trips)]
-        R --> P[RoutinePredictor]
-        Y[YtMusicController] -->|media session| YTM[YouTube Music]
-    end
-    subgraph Car display
-        H[HomeScreen<br/>GridTemplate] --> P
-        H -->|ACTION_NAVIGATE geo:lat,lng| W[Waze]
-        M[MusicScreen<br/>GridTemplate] --> Y
-    end
-    R --> H
-    R --> M
+    P[Phone app<br/>+ Android Auto] <-->|merge on open, after edits,<br/>every 15 min| G[(Private GitHub repo<br/>deck.json)]
+    L[Laptop dashboard<br/>GitHub Pages] <--> G
+    C[Chat / CLI<br/>tools/deckctl.py] <--> G
+    A[Code change pushed] --> CI[GitHub Actions:<br/>test + signed APK release] --> O[Obtainium on phone<br/>auto-updates app]
 ```
 
-- **`car/`** is the Android Auto UI, built with the official [Android for Cars App Library](https://developer.android.com/training/cars/apps) (POI category). Templates are validated by the library at build time, and the unit tests build them.
-- **`smart/RoutinePredictor`** is plain Kotlin. Each past trip votes for its destination, weighted by a Gaussian on time of day (wraps at midnight), a 45-day recency half-life, and same weekday vs weekday/weekend match. Same-weekday history leads once there's enough of it, so weekly habits beat daily ones on the right day. It only suggests when one place clearly leads.
-- **`music/YtMusicController`** controls YouTube Music through its media session: first the active session (needs notification-listener access, which is how Android gates media control), then by binding its media-browser service, then with a media-button wake-up sent only to YouTube Music, then with a play-from-search intent.
-- **`data/DeckRepository`** is the single source of truth. It exposes StateFlows, so edits on the phone update the car screen immediately.
+- **Data:** one `deck.json` in a *private* repo. Every change is a commit, so there's full history and any change can be undone.
+- **Conflicts:** the phone, the dashboard and the CLI use the same merge rules (`DeckMerge`). Each item keeps its newest edit, deletes are tombstones, and trips, drives and plays are unions. Edit on your laptop while driving and nothing is lost.
+- **App updates:** every push to `main` runs the tests and publishes a signed APK as a GitHub Release. Obtainium installs it over the top, keeping your data.
 
-## Install (Samsung / any Android phone)
+## Architecture
 
-1. **Install the APK.** Download `DRIVEDECK-v1.0.0.apk` from [Releases](../../releases), open it, and allow installs from your browser or file manager.
-2. **Open DRIVEDECK → Setup** and work through the checklist:
-   - **Music control → Enable.** Turn on DRIVEDECK under *Notification access*.
-     *Samsung / Android 13+:* sideloaded apps get this switch greyed out. Go to **App info → ⋮ → Allow restricted settings**, then try again.
-   - **Location → Allow.** Optional; used for distances and "you're here" detection.
-3. **Let Android Auto show sideloaded apps (one time):**
-   - Settings → Connected devices → **Android Auto**
-   - Scroll to the bottom and tap **Version** about 10 times, then accept developer settings
-   - **⋮ → Developer settings → tick "Unknown sources"**
-   - Back in Android Auto settings → **Customise launcher** → make sure DRIVEDECK is ticked
-4. **Plug into the car.** DRIVEDECK is in the Android Auto launcher. Open Waze once on the car screen so Android Auto uses it for navigation.
+| Package | Responsibility |
+|---|---|
+| `car/` | Android Auto screens built with Car App Library templates (Grid, Pane, List, Search, PlaceListMap, LongMessage) |
+| `smart/RoutinePredictor` | Learns your usual destination: time-of-day Gaussian, weekday pool, 45-day recency decay |
+| `trip/` | Trip computer foreground service and GPS maths (`TripAccumulator`: jitter, glitch and tunnel filtering) |
+| `eta/` | Road route (OSRM), personal ETA from your history, live ETA read from the Waze or Maps navigation notification |
+| `cameras/` | Speed and red-light cameras from OpenStreetMap, plus "ahead of you" detection (bearing ± 30°) |
+| `fuel/` | FuelWatch RSS client, today and tomorrow |
+| `music/` | YouTube Music control through its media session, recent songs, song-play logging |
+| `messages/` | WhatsApp chats from notifications, replies through WhatsApp's own reply action, text-to-speech |
+| `stats/` | Weekly review engine (the same maths as the dashboard) |
+| `sync/` | GitHub contents API client, pull → merge → push loop, WorkManager background sync |
+| `docs/index.html` | Laptop dashboard, one static file on GitHub Pages |
+| `tools/deckctl.py` | CLI for chat or terminal control: add places, send to car, log fuel, stats |
 
-## Build from source
+## Install
 
-Requirements: JDK 17+, Android SDK 36.
+1. **Phone:** install the APK from [Releases](../../releases). Play Protect may block it because of the notification permission: in the Play Store, go to Profile → Play Protect → ⚙ → turn off *Scan apps*, install, then turn it back on.
+2. **Setup tab:** enable *Music & messages access* (Samsung: App info → ⋮ → *Allow restricted settings* first), allow location and notifications, and paste your sync token.
+3. **Android Auto:** Settings → Connected devices → Android Auto → tap *Version* 10× → ⋮ → Developer settings → tick **Unknown sources** → Customise launcher → tick DRIVEDECK.
+4. **Auto-updates:** install [Obtainium](https://github.com/ImranR98/Obtainium), then *Add app* → `https://github.com/LAZARZEC18/DRIVEDECK`.
+
+## Build & test
 
 ```bash
-./gradlew assembleDebug            # APK -> app/build/outputs/apk/debug/
-./gradlew testDebugUnitTest        # 23 tests: predictor, links, car templates, UI render
-./gradlew lintDebug                # clean
+./gradlew testDebugUnitTest      # 57 tests: predictor, merge, trip maths, stats, ETA, cameras, FuelWatch, car templates, UI renders
+./gradlew lintDebug              # clean
+./gradlew assembleDebug
 ./gradlew testDebugUnitTest -Proborazzi.record   # re-render docs/screenshots
 ```
 
-Test the car UI on your computer with the [Desktop Head Unit](https://developer.android.com/training/cars/testing/dhu).
+## Privacy
 
-## Tests
+No accounts and no servers of our own. Data lives on your phone and in *your* private GitHub repo. WhatsApp message text is only held in memory while unread, and is never saved or synced.
 
-- `RoutinePredictorTest` covers commute patterns, weekly habits, fading old habits, ambiguity (no guessing), midnight wrap-around and exclusions.
-- `NavLinksTest` covers geo/Waze deep links and distance maths.
-- `CarScreensTest` runs Robolectric with the Car App Library's `TestCarContext`. It builds the real templates, checks the suggestion comes first, taps a tile and checks a navigation intent is sent.
-- `PhoneScreenshotTest` uses Roborazzi to render every phone tab (these produce the screenshots above).
+## Limits
 
-## Limitations
+- Android Auto hands navigation to the nav app you last opened on the car screen. On the phone you pick Waze or Google Maps per trip.
+- Showing message text while the car is moving isn't allowed by Android Auto. You get sender, count, read-aloud and quick replies instead.
+- YouTube Music has no public API. Playback uses Android's media session (the same way Google Assistant does it).
+- Camera alerts cover fixed and red-light cameras. Mobile camera vans move daily, and Waze and Maps warn about those from driver reports.
 
-- Android Auto only allows third-party apps in set categories. DRIVEDECK is a *POI* app, so Waze (not DRIVEDECK) draws the map and picks the route. DRIVEDECK picks the *destination*.
-- YouTube Music has no public API. Playback uses Android's media-session "play from search". It works well for playlists and artists, but it's search-based, so paste a YouTube Music link for an exact match.
-- Unpublished apps need Android Auto's "Unknown sources" setting (above).
-
-## Roadmap
-
-- [ ] Voice shortcuts ("DRIVEDECK, gym") using the car microphone (Car API 5+)
-- [ ] Calendar-aware suggestions (next event location)
-- [ ] Traffic-aware "leave now" nudges
-- [ ] Home-screen widget for the phone
-
-## Credits
-
-Icons: [Material Design Icons](https://pictogrammers.com/library/mdi/) (Apache 2.0).
-Built by **Lazar** · Perth, WA.
+Icons: [Material Design Icons](https://pictogrammers.com/library/mdi/) (Apache 2.0). Map data © OpenStreetMap contributors. Fuel prices © FuelWatch WA.
+Built by **Lazar**, Perth WA.

@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRIVEDECK Dashboard</title>
+<meta name="description" content="Manage DRIVEDECK from your laptop: places, music, weekly stats, drives and fuel. Syncs with the phone app.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 108 108'%3E%3Crect width='108' height='108' rx='24' fill='%230A0D12'/%3E%3Cpath d='M33 66A23 23 0 1 1 75 66' stroke='%232A3340' stroke-width='7' fill='none' stroke-linecap='round'/%3E%3Cpath d='M33 66A23 23 0 0 1 54 33.6' stroke='%2300E676' stroke-width='7' fill='none' stroke-linecap='round'/%3E%3Cpath d='M54 56.6L67 42' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0A0D12;--s1:#121821;--s2:#1A2230;--line:#2A3340;--tx:#E8EDF3;--mut:#8A96A8;--acc:#00E676;--acc2:#00B85C;--warn:#FFB74D;--err:#FF6B6B;--r:16px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--acc)}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 60px}
+header{display:flex;align-items:center;gap:14px;padding:22px 0 10px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:3px;font-size:22px}
+.logo b{color:var(--acc)}
+.status{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--mut);font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.dot.ok{background:var(--acc)} .dot.err{background:var(--err)}
+nav{display:flex;gap:6px;margin:10px 0 20px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5}
+nav button{background:var(--s1);border:1px solid var(--line);padding:9px 16px;border-radius:999px;cursor:pointer;color:var(--mut)}
+nav button.on{background:var(--acc);border-color:var(--acc);color:#00210D;font-weight:700}
+.grid{display:grid;gap:12px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3,.g2{grid-template-columns:1fr}}
+.card{background:var(--s1);border-radius:var(--r);padding:18px;min-width:0}
+.card h3{margin:0 0 12px;font-size:11px;letter-spacing:1.6px;color:var(--mut);text-transform:uppercase;display:flex;justify-content:space-between;gap:8px}
+.card h3 span{color:var(--acc2)}
+.tile .lab{font-size:11px;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase;font-weight:700}
+.tile .val{font-size:26px;font-weight:800;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .sub{color:var(--mut);font-size:12.5px}
+.tile.acc{background:#0E3B24;border:1px solid var(--acc2)} .tile.acc .lab{color:var(--acc)}
+.up{color:var(--acc)} .down{color:var(--warn)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .main{flex:1;min-width:0}.row .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row .d{color:var(--mut);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer}
+.btn:hover{border-color:var(--mut)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn.pri{background:var(--acc);color:#00210D;border-color:var(--acc);font-weight:700}
+.btn.danger{color:var(--err)}
+.btn.sm{padding:5px 10px;font-size:13px}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--acc)}
+label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
+.form{display:grid;gap:10px}
+.pill{display:inline-block;background:var(--s2);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--mut)}
+.pill.acc{background:#0E3B24;color:var(--acc)}
+.hero{background:linear-gradient(135deg,#0E3B24,#0A0D12 70%);border:1px solid var(--acc2);border-radius:20px;padding:22px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.hero .big{font-size:30px;font-weight:900}
+.muted{color:var(--mut)} .small{font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:700;padding:8px 6px;border-bottom:1px solid var(--line)}
+td{padding:10px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tablewrap{overflow-x:auto}
+dialog{background:var(--s1);color:var(--tx);border:1px solid var(--line);border-radius:18px;padding:22px;width:min(460px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--line);padding:10px 18px;border-radius:12px;opacity:0;transition:.25s;pointer-events:none}
+.toast.show{opacity:1}
+svg text{fill:var(--mut);font-size:11px}
+.empty{color:var(--mut);padding:18px 0;text-align:center}
+.connect{max-width:520px;margin:40px auto}
+.rank{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:6px 0}
+.rank .bar{height:4px;background:var(--acc);border-radius:4px;margin-top:4px}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <svg width="34" height="34" viewBox="0 0 108 108" aria-hidden="true"><path d="M33 66A23 23 0 1 1 75 66" stroke="#2A3340" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M33 66A23 23 0 0 1 54 33.6" stroke="#00E676" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M54 56.6L67 42" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="54" cy="56.6" r="5" fill="#fff"/></svg>
+      <span>DRIVE<b>DECK</b></span>
+    </div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">Not connected</span>
+      <button class="btn sm" id="refreshBtn" title="Sync now">Sync</button></div>
+  </header>
+
+  <section id="connect" class="connect card" hidden>
+    <h3>Connect your DRIVEDECK data</h3>
+    <p class="muted small">This page reads and writes <b>deck.json</b> in your private GitHub repo, the same data your phone syncs. Your token stays in this browser only.</p>
+    <div class="form">
+      <div class="grid g2"><div><label>GitHub user</label><input id="cOwner" value="LAZARZEC18"></div><div><label>Data repo</label><input id="cRepo" value="drivedeck-data"></div></div>
+      <div><label>Token (github_pat_…)</label><input id="cToken" type="password" autocomplete="off"></div>
+      <button class="btn pri" id="connectBtn">Connect</button>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <nav id="tabs">
+      <button data-tab="overview" class="on">Overview</button>
+      <button data-tab="places">Places</button>
+      <button data-tab="music">Music</button>
+      <button data-tab="drives">Drives</button>
+      <button data-tab="fuel">Fuel</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+    <main id="view"></main>
+  </div>
+</div>
+
+<dialog id="dlg"><form method="dialog" id="dlgForm" class="form"></form></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   DRIVEDECK dashboard. Same data model and merge rules as the Android app
+   (DeckState.kt): newest edit wins per item, deletes are tombstones,
+   trips/drives/plays are unions. Nothing here needs a server; it talks to
+   the GitHub contents API directly.
+   ========================================================================= */
+const LS = k => { try { return localStorage.getItem("dd_" + k) } catch { return null } };
+const LSset = (k, v) => { try { v == null ? localStorage.removeItem("dd_" + k) : localStorage.setItem("dd_" + k, v) } catch {} };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
+const DAY = 86400000;
+const ICONS = ["HOME","WORK","SCHOOL","GYM","SPORT","CAFE","SHOP","HEART","STAR","PIN"];
+const KINDS = { PLAYLIST: "Playlist", ARTIST: "Artist", SONG: "Song", MIX: "Mix" };
+const FUELS = { ULP: "Unleaded 91", PULP: "Premium 95", RON98: "Premium 98", DIESEL: "Diesel", E85: "E85", LPG: "LPG" };
+const EMOJI = { HOME:"🏠", WORK:"💼", SCHOOL:"🎓", GYM:"🏋️", SPORT:"🏀", CAFE:"☕", SHOP:"🛒", HEART:"❤️", STAR:"⭐", PIN:"📍" };
+
+let cfg = { owner: LS("owner"), repo: LS("repo"), token: LS("token") };
+let deck = null, sha = null, tab = "overview", weeksAgo = 0, busy = false;
+
+/* ---------- GitHub storage ---------- */
+const api = () => `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/deck.json`;
+const headers = () => ({ Authorization: "Bearer " + cfg.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" });
+const b64decode = b => new TextDecoder().decode(Uint8Array.from(atob(b.replace(/\n/g, "")), c => c.charCodeAt(0)));
+const b64encode = s => { const bytes = new TextEncoder().encode(s); let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin) };
+
+async function fetchRemote() {
+  const r = await fetch(api() + "?t=" + Date.now(), { headers: headers(), cache: "no-store" });
+  if (r.status === 404) return { state: emptyDeck(), sha: null };
+  if (!r.ok) throw new Error(r.status === 401 ? "Token rejected" : "GitHub " + r.status);
+  const j = await r.json();
+  return { state: normalize(JSON.parse(b64decode(j.content))), sha: j.sha };
+}
+async function putRemote(state, prevSha, message) {
+  const r = await fetch(api(), { method: "PUT", headers: { ...headers(), "Content-Type": "application/json" },
+    body: JSON.stringify({ message, content: b64encode(JSON.stringify(state, null, 1)), ...(prevSha ? { sha: prevSha } : {}) }) });
+  if (r.status === 409 || r.status === 422) return null;
+  if (!r.ok) throw new Error("GitHub " + r.status);
+  return (await r.json()).content.sha;
+}
+
+/** Apply a change safely: pull latest, merge, apply, push. Retries if the phone saved in between. */
+async function save(mutator, message) {
+  if (busy) return; busy = true; setStatus("sync", "Saving…");
+  try {
+    for (let i = 0; i < 3; i++) {
+      const remote = await fetchRemote();
+      const merged = merge(deck || remote.state, remote.state);
+      mutator(merged);
+      const newSha = await putRemote(merged, remote.sha, "Dashboard: " + message);
+      if (newSha) { deck = merged; sha = newSha; setStatus("ok", "Saved " + time(Date.now())); toast(message); render(); return; }
+    }
+    throw new Error("Couldn't save, try again");
+  } catch (e) { setStatus("err", e.message); toast(e.message) } finally { busy = false }
+}
+async function load() {
+  setStatus("sync", "Syncing…");
+  try { const r = await fetchRemote(); deck = r.state; sha = r.sha; setStatus("ok", "Synced " + time(Date.now())); render(); }
+  catch (e) { setStatus("err", e.message); if (e.message === "Token rejected") showConnect() }
+}
+
+/* ---------- Model + merge (mirrors DeckMerge in the app) ---------- */
+function emptyDeck() { return { schema: 1, places: [], music: [], trips: [], tripsResetAt: 0, nextUp: null, recents: [], drives: [], fillUps: [], plays: [], settings: { fuelType: "PULP", litresPer100Km: 7.4, phoneNavApp: "WAZE", updatedAt: 0 } } }
+function normalize(d) { return Object.assign(emptyDeck(), d) }
+function mergeItems(a, b, key = "order") {
+  const out = new Map();
+  for (const it of [...a, ...b]) {
+    const ex = out.get(it.id);
+    if (!ex || it.updatedAt > ex.updatedAt || (it.updatedAt === ex.updatedAt && it.deleted && !ex.deleted)) out.set(it.id, it);
+  }
+  return [...out.values()].filter(x => !(x.deleted && Date.now() - x.updatedAt > 60 * DAY)).sort((x, y) => (x[key] - y[key]) || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+}
+function uniqBy(arr, f) { const m = new Map(); arr.forEach(x => m.set(f(x), x)); return [...m.values()] }
+function merge(a, b) {
+  a = normalize(a); b = normalize(b);
+  const resetAt = Math.max(a.tripsResetAt || 0, b.tripsResetAt || 0);
+  const recents = [...uniqBy([...a.recents, ...b.recents].sort((x, y) => x.playedAt - y.playedAt), r => r.query.trim().toLowerCase()).values()].sort((x, y) => y.playedAt - x.playedAt).slice(0, 20);
+  return {
+    schema: 1,
+    places: mergeItems(a.places, b.places), music: mergeItems(a.music, b.music),
+    trips: uniqBy([...a.trips, ...b.trips].filter(t => t.t >= resetAt), t => t.p + "@" + t.t).sort((x, y) => x.t - y.t).slice(-600),
+    tripsResetAt: resetAt,
+    nextUp: [a.nextUp, b.nextUp].filter(Boolean).sort((x, y) => y.updatedAt - x.updatedAt)[0] || null,
+    recents,
+    drives: uniqBy([...a.drives, ...b.drives], d => d.id).sort((x, y) => x.startedAt - y.startedAt).slice(-400),
+    fillUps: mergeItems(a.fillUps, b.fillUps, "at"),
+    plays: uniqBy([...a.plays, ...b.plays], p => p.t + "@" + p.at).sort((x, y) => x.at - y.at).slice(-2000),
+    settings: (b.settings?.updatedAt || 0) > (a.settings?.updatedAt || 0) ? b.settings : a.settings,
+  };
+}
+const places = () => deck.places.filter(p => !p.deleted);
+const music = () => deck.music.filter(m => !m.deleted);
+const fills = () => deck.fillUps.filter(f => !f.deleted).sort((a, b) => a.at - b.at);
+
+/* ---------- Stats (mirrors StatsEngine) ---------- */
+function weekStart(ago = 0) { const d = new Date(); d.setHours(0, 0, 0, 0); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow - 7 * ago); return d }
+function avgPrice(fs) { const l = fs.reduce((s, f) => s + f.litres, 0); return l ? fs.reduce((s, f) => s + f.litres * f.centsPerLitre, 0) / l : null }
+function measured(fs) {
+  const w = fs.filter(f => f.odometerKm != null), full = w.filter(f => f.fullTank !== false);
+  if (full.length < 2) return null; const a = full[0], z = full[full.length - 1], km = z.odometerKm - a.odometerKm;
+  if (km <= 0) return null; return w.filter(f => f.at > a.at && f.at <= z.at).reduce((s, f) => s + f.litres, 0) / km * 100;
+}
+function stats(ago) {
+  const from = weekStart(ago).getTime(), to = from + 7 * DAY, inR = t => t >= from && t < to;
+  const dr = deck.drives.filter(d => inR(d.startedAt));
+  const km = dr.reduce((s, d) => s + d.distanceM, 0) / 1000, ms = dr.reduce((s, d) => s + (d.endedAt - d.startedAt), 0), mv = dr.reduce((s, d) => s + d.movingMs, 0);
+  const perDay = Array(7).fill(0), perDayN = Array(7).fill(0), perHour = Array(24).fill(0);
+  dr.forEach(d => { const i = Math.min(6, Math.floor((d.startedAt - from) / DAY)); perDay[i] += d.distanceM / 1000; perDayN[i]++; perHour[new Date(d.startedAt).getHours()]++ });
+  const names = Object.fromEntries(deck.places.map(p => [p.id, p.name]));
+  const count = arr => Object.entries(arr.reduce((m, k) => (m[k] = (m[k] || 0) + 1, m), {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const pl = deck.plays.filter(p => inR(p.at));
+  const fs = fills().filter(f => inR(f.at)), ap = avgPrice(fills()) || 0;
+  return { from, to, drives: dr.length, km, ms, mv, avg: ms ? km / (ms / 3.6e6) : 0, avgMv: mv ? km / (mv / 3.6e6) : 0,
+    max: Math.max(0, ...dr.map(d => d.maxSpeedMps)) * 3.6, longest: Math.max(0, ...dr.map(d => d.distanceM)) / 1000,
+    perDay, perDayN, perHour, days: perDayN.filter(Boolean).length,
+    top: count(deck.trips.filter(t => inR(t.t)).map(t => names[t.p]).filter(Boolean)), navs: deck.trips.filter(t => inR(t.t)).length,
+    songs: pl.length, topSongs: count(pl.map(p => p.a ? `${p.t} · ${p.a}` : p.t)), topArtists: count(pl.map(p => p.a).filter(Boolean)),
+    fuel: fs.reduce((s, f) => s + f.totalDollars, 0), litres: fs.reduce((s, f) => s + f.litres, 0), fills: fs.length,
+    est: km * (deck.settings.litresPer100Km || 7.4) / 100 * ap / 100 };
+}
+
+/* ---------- Formatting ---------- */
+const fkm = v => v < 10 ? v.toFixed(1) + " km" : Math.round(v).toLocaleString() + " km";
+const fkmh = v => Math.round(v) + " km/h";
+const money = v => "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dur = ms => { const m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? `${h}h ${m % 60}m` : `${m} min` };
+const time = t => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const date = t => new Date(t).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+const pct = (n, b) => b > 0 ? (n - b) / b * 100 : null;
+const pctHtml = p => p == null ? '<span class="muted">—</span>' : `<span class="${p >= 0 ? "up" : "down"}">${p >= 0 ? "▲" : "▼"} ${Math.abs(Math.round(p))}%</span>`;
+const tile = (lab, val, sub = "", acc = false) => `<div class="card tile ${acc ? "acc" : ""}"><div class="lab">${lab}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;
+function bars(vals, labels, h = 150) {
+  const max = Math.max(...vals, 0.0001), w = 100 / vals.length, top = vals.indexOf(Math.max(...vals));
+  return `<svg viewBox="0 0 100 ${h / 3 + 8}" width="100%" height="${h}" preserveAspectRatio="none">${vals.map((v, i) => {
+    const bh = v > 0 ? Math.max(2, v / max * (h / 3 - 2)) : 1;
+    return `<rect x="${i * w + w * .2}" y="${h / 3 - bh}" width="${w * .6}" height="${bh}" rx="1.2" fill="${i === top && v > 0 ? "#00E676" : v > 0 ? "rgba(0,184,92,.45)" : "#1A2230"}"><title>${labels[i]}: ${typeof v === "number" ? (Math.round(v * 10) / 10) : v}</title></rect>`
+  }).join("")}</svg><div style="display:flex">${labels.map(l => `<div style="flex:1;text-align:center;font-size:11px;color:var(--mut)">${l}</div>`).join("")}</div>`;
+}
+const rank = (items, unit, empty) => items.length ? items.map(([n, c], i) => `<div class="rank"><b style="color:${i ? "var(--mut)" : "var(--acc)"}">${i + 1}</b><div><div>${esc(n)}</div><div class="bar" style="width:${c / items[0][1] * 100}%;opacity:${i ? .5 : 1}"></div></div><span class="muted small">${c} ${unit === "plays" && c === 1 ? "play" : unit}</span></div>`).join("") : `<div class="empty">${empty}</div>`;
+
+/* ---------- Views ---------- */
+function render() {
+  if (!deck) return;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  $("#view").innerHTML = ({ overview, places: placesView, music: musicView, drives: drivesView, fuel: fuelView, settings: settingsView })[tab]();
+}
+
+function overview() {
+  const w = stats(weeksAgo), p = stats(weeksAgo + 1), nu = deck.nextUp, nuPlace = nu && nu.placeId && nu.expiresAt > Date.now() ? deck.places.find(x => x.id === nu.placeId) : null;
+  const label = weeksAgo === 0 ? "This week" : weeksAgo === 1 ? "Last week" : weeksAgo + " weeks ago";
+  const range = `${new Date(w.from).toLocaleDateString([], { day: "numeric", month: "short" })} – ${new Date(w.to - DAY).toLocaleDateString([], { day: "numeric", month: "short" })}`;
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const hours = [0, 3, 6, 9, 12, 15, 18, 21].map(h => w.perHour.slice(h, h + 3).reduce((a, b) => a + b, 0));
+  return `
+  <div class="hero" style="margin-bottom:14px">
+    <div style="flex:1;min-width:220px"><div class="muted small">SEND TO CAR</div>
+      <div class="big">${nuPlace ? "→ " + esc(nuPlace.name) : "Nothing queued"}</div>
+      <div class="muted small">${nuPlace ? "First tile on the car screen until " + time(nu.expiresAt) : "Pick a place and it shows up first on your car screen next drive."}</div></div>
+    <div class="flex">${places().slice(0, 6).map(pl => `<button class="btn ${nuPlace && nuPlace.id === pl.id ? "pri" : ""}" onclick="sendToCar('${pl.id}')">${EMOJI[pl.icon] || "📍"} ${esc(pl.name)}</button>`).join("")}
+      ${nuPlace ? `<button class="btn danger" onclick="sendToCar(null)">Clear</button>` : ""}</div>
+  </div>
+  <div class="flex" style="justify-content:space-between;margin:18px 0 12px">
+    <button class="btn" onclick="weeksAgo++;render()">‹ Prev</button>
+    <div style="text-align:center"><div style="font-size:20px;font-weight:800">${label}</div><div class="muted small">${range}</div></div>
+    <button class="btn" ${weeksAgo ? "" : "disabled"} onclick="weeksAgo=Math.max(0,weeksAgo-1);render()">Next ›</button>
+  </div>
+  <div class="grid g4">
+    ${tile("Distance", fkm(w.km), pctHtml(pct(w.km, p.km)) + " vs prev week", true)}
+    ${tile("Drives", w.drives, `${w.days}/7 days · ${w.navs} navigations`)}
+    ${tile("Time driving", dur(w.ms), "moving " + dur(w.mv))}
+    ${tile("Average speed", fkmh(w.avg), "moving " + fkmh(w.avgMv))}
+    ${tile("Top speed", fkmh(w.max), "longest " + fkm(w.longest))}
+    ${tile("Fuel spent", money(w.fuel), `${w.fills} fill-ups · driving ≈ ${money(w.est)}`)}
+    ${tile("Songs played", w.songs, pctHtml(pct(w.songs, p.songs)) + " vs prev week")}
+    ${tile("Places", places().length, music().length + " music shortcuts")}
+  </div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><h3>Km per day <span>${w.km ? "Busiest: " + DAYS[w.perDay.indexOf(Math.max(...w.perDay))] : ""}</span></h3>${bars(w.perDay, DAYS)}</div>
+    <div class="card"><h3>When you drive</h3>${bars(hours, ["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"])}</div>
+  </div>
+  <div class="grid g3" style="margin-top:12px">
+    <div class="card"><h3>Top destinations</h3>${rank(w.top, "×", "Navigate with DRIVEDECK to see these")}</div>
+    <div class="card"><h3>Top songs</h3>${rank(w.topSongs, "plays", "No songs yet")}</div>
+    <div class="card"><h3>Top artists</h3>${rank(w.topArtists, "plays", "No artists yet")}</div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>Compared with the week before</h3>
+    <table><tr><th>Metric</th><th>Previous</th><th>This</th><th>Change</th></tr>
+    ${[["Distance", fkm(p.km), fkm(w.km), pct(w.km, p.km)], ["Drives", p.drives, w.drives, pct(w.drives, p.drives)], ["Time", dur(p.ms), dur(w.ms), pct(w.ms, p.ms)],
+       ["Avg speed", fkmh(p.avg), fkmh(w.avg), pct(w.avg, p.avg)], ["Fuel", money(p.fuel), money(w.fuel), pct(w.fuel, p.fuel)], ["Songs", p.songs, w.songs, pct(w.songs, p.songs)]]
+       .map(r => `<tr><td>${r[0]}</td><td class="muted">${r[1]}</td><td><b>${r[2]}</b></td><td>${pctHtml(r[3])}</td></tr>`).join("")}</table></div>`;
+}
+
+function placesView() {
+  const counts = deck.trips.reduce((m, t) => (m[t.p] = (m[t.p] || 0) + 1, m), {});
+  return `<div class="card"><h3>Your places <span>${Math.min(places().length, 5)} on the car home screen</span></h3>
+  ${places().map(p => `<div class="row"><div style="font-size:22px">${EMOJI[p.icon] || "📍"}</div><div class="main"><div class="t">${esc(p.name)}</div><div class="d">${esc(p.address || "Pinned location")} · ${counts[p.id] || 0} trips${p.lat == null ? " · <span class='pill'>phone will pin on map</span>" : ""}</div></div>
+    <button class="btn sm" onclick="sendToCar('${p.id}')">Send to car</button>
+    <a class="btn sm" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.lat != null ? p.lat + "," + p.lng : p.address)}">Map</a>
+    <button class="btn sm" onclick="editPlace('${p.id}')">Edit</button></div>`).join("") || '<div class="empty">No places yet</div>'}
+  <div style="margin-top:14px"><button class="btn pri" onclick="editPlace()">+ Add place</button></div></div>`;
+}
+
+function musicView() {
+  return `<div class="grid g2">
+  <div class="card"><h3>Playlists & shortcuts <span>first 4 on the car screen</span></h3>
+    ${music().map(m => `<div class="row"><div style="font-size:20px">${{ PLAYLIST: "🎶", ARTIST: "🎤", SONG: "🎵", MIX: "🔀" }[m.kind] || "🎶"}</div><div class="main"><div class="t">${esc(m.name)}</div><div class="d">${KINDS[m.kind] || m.kind}${m.query && m.query !== m.name ? " · “" + esc(m.query) + "”" : ""}${m.url ? " · link" : ""}</div></div>
+      <button class="btn sm" onclick="editMusic('${m.id}')">Edit</button></div>`).join("") || '<div class="empty">No shortcuts</div>'}
+    <div style="margin-top:14px"><button class="btn pri" onclick="editMusic()">+ Add shortcut</button></div></div>
+  <div class="card"><h3>Recent songs <span>${deck.recents.length}/20</span></h3>
+    ${deck.recents.map(r => `<div class="row"><div>🎵</div><div class="main"><div class="t">${esc(r.title)}</div><div class="d">${esc(r.artist || "Search")} · ${date(r.playedAt)}</div></div>
+      <a class="btn sm" target="_blank" href="https://music.youtube.com/search?q=${encodeURIComponent(r.query)}">Open</a></div>`).join("") || '<div class="empty">Songs you search in the app show up here</div>'}</div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>Recently played <span>${deck.plays.length} logged</span></h3>
+    <div class="tablewrap"><table><tr><th>Song</th><th>Artist</th><th>When</th></tr>
+    ${deck.plays.slice(-25).reverse().map(p => `<tr><td>${esc(p.t)}</td><td class="muted">${esc(p.a || "")}</td><td class="muted">${date(p.at)} ${time(p.at)}</td></tr>`).join("")}</table></div></div>`;
+}
+
+function drivesView() {
+  const ds = deck.drives.slice().reverse(), ap = avgPrice(fills());
+  const total = deck.drives.reduce((s, d) => s + d.distanceM, 0) / 1000;
+  return `<div class="grid g4" style="margin-bottom:12px">
+    ${tile("All-time distance", fkm(total), deck.drives.length + " drives", true)}
+    ${tile("All-time driving", dur(deck.drives.reduce((s, d) => s + d.endedAt - d.startedAt, 0)), "")}
+    ${tile("Top speed ever", fkmh(Math.max(0, ...deck.drives.map(d => d.maxSpeedMps)) * 3.6), "")}
+    ${tile("Longest drive", fkm(Math.max(0, ...deck.drives.map(d => d.distanceM)) / 1000), "")}
+  </div>
+  <div class="card"><h3>Drive history</h3><div class="tablewrap"><table>
+  <tr><th>When</th><th>To</th><th>Distance</th><th>Time</th><th>Avg</th><th>Moving avg</th><th>Max</th><th>Arrived in</th><th>Fuel ≈</th></tr>
+  ${ds.map(d => { const t = d.endedAt - d.startedAt, km = d.distanceM / 1000; return `<tr><td>${date(d.startedAt)} ${time(d.startedAt)}</td><td>${esc(d.destination || "—")}</td><td>${fkm(km)}</td><td>${dur(t)}</td>
+    <td>${fkmh(t ? km / (t / 3.6e6) : 0)}</td><td>${fkmh(d.movingMs ? km / (d.movingMs / 3.6e6) : 0)}</td><td>${fkmh(d.maxSpeedMps * 3.6)}</td>
+    <td>${d.arrivedAt ? dur(d.arrivedAt - d.startedAt) : "—"}</td><td>${ap ? money(km * (deck.settings.litresPer100Km || 7.4) / 100 * ap / 100) : "—"}</td></tr>` }).join("") || '<tr><td colspan="9" class="empty">No drives yet. They record automatically in the car.</td></tr>'}
+  </table></div></div>`;
+}
+
+function fuelView() {
+  const fs = fills(), ap = avgPrice(fs), m = measured(fs), l100 = m || deck.settings.litresPer100Km || 7.4;
+  const month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
+  const mf = fs.filter(f => f.at >= month.getTime());
+  const byMonth = {}; fs.forEach(f => { const k = new Date(f.at).toLocaleDateString([], { month: "short" }); byMonth[k] = (byMonth[k] || 0) + f.totalDollars });
+  const mk = Object.keys(byMonth).slice(-6);
+  return `<div class="grid g4">
+    ${tile("This month", money(mf.reduce((s, f) => s + f.totalDollars, 0)), mf.length + " fill-ups", true)}
+    ${tile("Avg price paid", ap ? ap.toFixed(1) + "¢" : "—", "per litre")}
+    ${tile("Economy", l100.toFixed(1) + " L/100km", m ? "measured" : "from settings")}
+    ${tile("Cost per km", ap ? (l100 / 100 * ap).toFixed(1) + "¢" : "—", ap ? money(l100 * ap / 100) + " per 100 km" : "")}
+  </div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><h3>Spend by month</h3>${mk.length ? bars(mk.map(k => byMonth[k]), mk) : '<div class="empty">Log fill-ups to see this</div>'}</div>
+    <div class="card"><h3>Cheapest fuel now</h3><p class="muted small">Live prices are in the phone app and on the car screen (FuelWatch, filtered to where you are).</p>
+      <div class="flex"><a class="btn" target="_blank" href="https://www.fuelwatch.wa.gov.au/">FuelWatch</a><a class="btn" target="_blank" href="https://petrolspy.com.au/">PetrolSpy</a></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>Fill-ups</h3><div class="tablewrap"><table><tr><th>Date</th><th>Total</th><th>Litres</th><th>¢/L</th><th>Odometer</th><th>Station</th><th></th></tr>
+  ${fs.slice().reverse().map(f => `<tr><td>${date(f.at)}</td><td><b>${money(f.totalDollars)}</b></td><td>${f.litres.toFixed(1)}</td><td>${f.centsPerLitre.toFixed(1)}</td><td>${f.odometerKm ?? "—"}</td><td>${esc(f.station || "")}</td>
+    <td><button class="btn sm danger" onclick="delFill('${f.id}')">Delete</button></td></tr>`).join("") || '<tr><td colspan="7" class="empty">No fill-ups yet</td></tr>'}</table></div>
+  <div style="margin-top:14px"><button class="btn pri" onclick="addFill()">+ Log fill-up</button></div></div>`;
+}
+
+function settingsView() {
+  const s = deck.settings;
+  return `<div class="grid g2"><div class="card"><h3>Car & fuel</h3><div class="form">
+    <div><label>Fuel type (for prices)</label><select id="sFuel">${Object.entries(FUELS).map(([k, v]) => `<option value="${k}" ${s.fuelType === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+    <div><label>Fuel economy (L/100km)</label><input id="sL100" type="number" step="0.1" value="${s.litresPer100Km}"></div>
+    <div><label>Phone navigation app</label><select id="sNav"><option value="WAZE" ${s.phoneNavApp === "WAZE" ? "selected" : ""}>Waze</option><option value="GOOGLE_MAPS" ${s.phoneNavApp === "GOOGLE_MAPS" ? "selected" : ""}>Google Maps</option></select></div>
+    <button class="btn pri" onclick="saveSettings()">Save settings</button></div></div>
+  <div class="card"><h3>Data & sync</h3><p class="muted small">Connected to <b>${esc(cfg.owner)}/${esc(cfg.repo)}</b>. Every change here is a commit in that private repo, so you have full history and can undo anything.</p>
+    <div class="flex"><a class="btn" target="_blank" href="https://github.com/${esc(cfg.owner)}/${esc(cfg.repo)}/commits/main/deck.json">View history</a>
+    <button class="btn" onclick="exportJson()">Export JSON</button><button class="btn danger" onclick="resetRoutine()">Reset routine</button><button class="btn danger" onclick="disconnect()">Disconnect</button></div></div></div>`;
+}
+
+/* ---------- Actions ---------- */
+function sendToCar(id) { save(d => { d.nextUp = { placeId: id, expiresAt: id ? Date.now() + 12 * 3600e3 : 0, updatedAt: Date.now() } }, id ? "Sent " + (deck.places.find(p => p.id === id)?.name || "place") + " to car" : "Cleared next destination") }
+function dialog(title, fields, onSave, onDelete) {
+  const f = $("#dlgForm");
+  f.innerHTML = `<h3 style="margin:0 0 6px">${title}</h3>${fields.map(x => x.type === "select"
+    ? `<div><label>${x.label}</label><select name="${x.name}">${x.options.map(([v, l]) => `<option value="${v}" ${x.value === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>`
+    : `<div><label>${x.label}</label><input name="${x.name}" type="${x.type || "text"}" step="any" value="${esc(x.value ?? "")}" placeholder="${esc(x.ph || "")}"></div>`).join("")}
+    <div class="flex" style="justify-content:flex-end;margin-top:8px">${onDelete ? '<button class="btn danger" value="del" style="margin-right:auto">Delete</button>' : ""}<button class="btn" value="cancel">Cancel</button><button class="btn pri" value="ok">Save</button></div>`;
+  const dlg = $("#dlg"); dlg.returnValue = ""; dlg.showModal();
+  dlg.onclose = () => { const v = Object.fromEntries(new FormData(f)); if (dlg.returnValue === "ok") onSave(v); else if (dlg.returnValue === "del") onDelete() };
+}
+function editPlace(id) {
+  const p = id ? deck.places.find(x => x.id === id) : null;
+  dialog(p ? "Edit place" : "New place", [
+    { name: "name", label: "Name (shown in the car)", value: p?.name }, { name: "address", label: "Address", value: p?.address, ph: "Street, suburb WA" },
+    { name: "coords", label: "Exact pin (optional: lat, lng from Google Maps)", value: p?.lat != null ? p.lat + ", " + p.lng : "" },
+    { name: "icon", label: "Icon", type: "select", value: p?.icon || "PIN", options: ICONS.map(i => [i, (EMOJI[i] || "") + " " + i[0] + i.slice(1).toLowerCase()]) },
+  ], v => {
+    if (!v.name.trim()) return toast("Name is required");
+    const m = v.coords.match(/(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)/), addrChanged = p && p.address !== v.address;
+    const lat = m ? +m[1] : (addrChanged ? null : p?.lat ?? null), lng = m ? +m[3] : (addrChanged ? null : p?.lng ?? null);
+    const item = { ...(p || { id: uuid(), order: Date.now() }), name: v.name.trim(), address: v.address.trim(), icon: v.icon, lat, lng, updatedAt: Date.now(), deleted: false };
+    if (lat == null) { delete item.lat; delete item.lng }
+    save(d => { d.places = d.places.filter(x => x.id !== item.id).concat(item) }, (p ? "Updated " : "Added ") + item.name);
+  }, p ? () => save(d => { const x = d.places.find(y => y.id === p.id); if (x) Object.assign(x, { deleted: true, updatedAt: Date.now() }) }, "Deleted " + p.name) : null);
+}
+function editMusic(id) {
+  const m = id ? deck.music.find(x => x.id === id) : null;
+  dialog(m ? "Edit shortcut" : "New music shortcut", [
+    { name: "name", label: "Name (shown in the car)", value: m?.name },
+    { name: "kind", label: "Type", type: "select", value: m?.kind || "PLAYLIST", options: Object.entries(KINDS) },
+    { name: "query", label: "Search for (optional)", value: m && m.query !== m.name ? m.query : "" },
+    { name: "url", label: "YouTube Music link (optional)", value: m?.url, ph: "https://music.youtube.com/playlist?list=…" },
+  ], v => {
+    if (!v.name.trim()) return toast("Name is required");
+    const item = { ...(m || { id: uuid(), order: Date.now() }), name: v.name.trim(), kind: v.kind, query: v.query.trim() || v.name.trim(), updatedAt: Date.now(), deleted: false };
+    if (v.url.trim()) item.url = v.url.trim(); else delete item.url;
+    save(d => { d.music = d.music.filter(x => x.id !== item.id).concat(item) }, (m ? "Updated " : "Added ") + item.name);
+  }, m ? () => save(d => { const x = d.music.find(y => y.id === m.id); if (x) Object.assign(x, { deleted: true, updatedAt: Date.now() }) }, "Deleted " + m.name) : null);
+}
+function addFill() {
+  dialog("Log fill-up", [{ name: "litres", label: "Litres", type: "number" }, { name: "cents", label: "Price (¢/L)", type: "number" }, { name: "total", label: "Total $ (or leave blank)", type: "number" },
+    { name: "odo", label: "Odometer km (optional)", type: "number" }, { name: "station", label: "Station (optional)" }, { name: "when", label: "Date", type: "date", value: new Date().toISOString().slice(0, 10) }], v => {
+    let l = +v.litres, c = +v.cents, t = +v.total;
+    if (l && c && !t) t = l * c / 100; else if (l && t && !c) c = t / l * 100; else if (c && t && !l) l = t / c * 100;
+    if (!(l > 0 && c > 0 && t > 0)) return toast("Enter any two of litres, price and total");
+    const at = v.when ? new Date(v.when + "T12:00").getTime() : Date.now();
+    const f = { id: uuid(), at, litres: l, centsPerLitre: c, totalDollars: t, fullTank: true, updatedAt: Date.now(), deleted: false };
+    if (v.odo) f.odometerKm = +v.odo; if (v.station) f.station = v.station;
+    save(d => { d.fillUps.push(f) }, "Logged " + money(t));
+  });
+}
+function delFill(id) { save(d => { const x = d.fillUps.find(y => y.id === id); if (x) Object.assign(x, { deleted: true, updatedAt: Date.now() }) }, "Deleted fill-up") }
+function saveSettings() { const s = { fuelType: $("#sFuel").value, litresPer100Km: +$("#sL100").value || 7.4, phoneNavApp: $("#sNav").value, updatedAt: Date.now() }; save(d => { d.settings = s }, "Settings saved") }
+function resetRoutine() { if (confirm("Forget all logged trips everywhere? Places, music, drives and fuel stay.")) save(d => { d.trips = []; d.tripsResetAt = Date.now() }, "Routine reset") }
+function exportJson() { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(deck, null, 1)], { type: "application/json" })); a.download = "drivedeck-" + new Date().toISOString().slice(0, 10) + ".json"; a.click() }
+function disconnect() { ["owner", "repo", "token"].forEach(k => LSset(k, null)); location.reload() }
+
+/* ---------- Shell ---------- */
+function setStatus(kind, text) { $("#dot").className = "dot " + (kind === "ok" ? "ok" : kind === "err" ? "err" : ""); $("#statusText").textContent = text }
+let toastT; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600) }
+function showConnect() { $("#connect").hidden = false; $("#app").hidden = true }
+$("#connectBtn").onclick = () => {
+  cfg = { owner: $("#cOwner").value.trim(), repo: $("#cRepo").value.trim(), token: $("#cToken").value.trim() };
+  if (!cfg.token) return toast("Paste your token");
+  ["owner", "repo", "token"].forEach(k => LSset(k, cfg[k]));
+  $("#connect").hidden = true; $("#app").hidden = false; load();
+};
+$("#refreshBtn").onclick = () => cfg.token ? load() : showConnect();
+$("#tabs").onclick = e => { const b = e.target.closest("button"); if (b) { tab = b.dataset.tab; render() } };
+if (cfg.token) { $("#app").hidden = false; load() } else showConnect();
+setInterval(() => { if (cfg.token && !busy && document.visibilityState === "visible") load() }, 30000);
+</script>
+</body>
+</html>

@@ -39,6 +39,7 @@ class CarScreensTest {
         assertEquals("Greenhse", items.first().title.toString())
         assertTrue(items.first().text.toString(), items.first().text.toString().contains("~"))
         assertTrue("grid respects car limit", items.size <= 6)
+        assertEquals("More", items.last().title.toString())
         assertEquals(2, t.actionStrip!!.actions.size)
     }
 
@@ -52,8 +53,8 @@ class CarScreensTest {
         DemoData.seed(carContext)
         val t = MusicScreen(carContext).onGetTemplate() as GridTemplate
         val titles = t.singleList!!.items.map { (it as GridItem).title.toString() }
-        assertEquals("Party Mix", titles.first())
-        assertEquals(5, titles.size)
+        assertEquals(listOf("Search", "Recent", "Party Mix"), titles.take(3))
+        assertTrue(titles.size <= 6)
         assertEquals(2, t.actionStrip!!.actions.size)
     }
 
@@ -72,4 +73,45 @@ class CarScreensTest {
     }
 
     private object NoopCallback : androidx.car.app.OnDoneCallback
+
+    @Test fun `hub, trip, week, fuel, messages and search screens all build`() {
+        DemoData.seed(carContext)
+        val hub = HubScreen(carContext).onGetTemplate() as GridTemplate
+        assertEquals(listOf("Trip", "Fuel", "WhatsApp", "This week", "Recent songs", "Cameras"), hub.singleList!!.items.map { (it as GridItem).title.toString() })
+        assertTrue(CamerasScreen(carContext).onGetTemplate() is androidx.car.app.model.PlaceListMapTemplate)
+
+        val trip = TripScreen(carContext).onGetTemplate() as androidx.car.app.model.PaneTemplate
+        assertEquals("Trip computer", trip.pane.rows.first().title.toString())
+
+        val week = WeekScreen(carContext).onGetTemplate() as androidx.car.app.model.PaneTemplate
+        assertEquals(4, week.pane.rows.size)
+        assertTrue(week.pane.rows.first().texts.first().toString(), week.pane.rows.first().texts.first().toString().contains("drives"))
+
+        assertTrue(FuelScreen(carContext).onGetTemplate() is androidx.car.app.model.PlaceListMapTemplate)
+        assertTrue(MessagesScreen(carContext).onGetTemplate() is MessageTemplate) // no notification access in tests
+        assertTrue(PlaceSearchScreen(carContext).onGetTemplate() is androidx.car.app.model.SearchTemplate)
+        val songs = MusicSearchScreen(carContext).onGetTemplate() as androidx.car.app.model.SearchTemplate
+        assertEquals("Rumble", (songs.itemList!!.items.first() as androidx.car.app.model.Row).title.toString())
+        val recents = RecentSongsScreen(carContext).onGetTemplate() as androidx.car.app.model.ListTemplate
+        assertEquals(6, recents.singleList!!.items.size)
+    }
+
+    @Test fun `whatsapp chat screens build with a conversation`() {
+        com.drivedeck.messages.MessageHub.setForTests(
+            listOf(
+                com.drivedeck.messages.Conversation(
+                    key = "k1", app = "com.whatsapp", title = "Maxwell",
+                    messages = listOf(com.drivedeck.messages.Conversation.Message(null, "Coming to the game tonight?", 1L)),
+                    postedAt = System.currentTimeMillis(), isGroup = false, reply = null, markRead = null,
+                ),
+            ),
+        )
+        val convo = ConversationScreen(carContext, "k1").onGetTemplate() as androidx.car.app.model.PaneTemplate
+        assertEquals("Maxwell", convo.title.toString())
+        assertEquals(2, convo.pane.actions.size)
+        val full = FullTextScreen(carContext, "k1").onGetTemplate() as androidx.car.app.model.LongMessageTemplate
+        assertTrue(full.message.toString().contains("Coming to the game"))
+        assertTrue(QuickReplyScreen(carContext, "k1").onGetTemplate() is androidx.car.app.model.ListTemplate)
+        com.drivedeck.messages.MessageHub.setForTests(emptyList())
+    }
 }
