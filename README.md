@@ -2,9 +2,9 @@
 
 # DRIVEDECK
 
-**An Android Auto companion that gives your car what it's missing: one-tap destinations that learn your routine, a real trip computer, live fuel prices, speed camera alerts, WhatsApp on the car screen, YouTube Music at a tap, and weekly driving stats. Everything syncs between your phone, a laptop dashboard and chat.**
+**A driving companion that works in the background: plug into Android Auto, use Waze and YouTube Music as normal, and DRIVEDECK records every drive (speed, averages, max, distance), speaks speed camera and low fuel alerts, counts your songs, and turns it all into weekly stats. Everything syncs between your phone, a laptop dashboard and chat.**
 
-Kotlin · Jetpack Compose · Android for Cars App Library · GitHub-backed sync · 57 automated tests
+Kotlin · Jetpack Compose · Android for Cars App Library · GitHub-backed sync · 61 automated tests
 
 ![DRIVEDECK phone app](docs/screenshots/hero.png)
 
@@ -14,7 +14,17 @@ Kotlin · Jetpack Compose · Android for Cars App Library · GitHub-backed sync 
 
 ## What it does
 
-### In the car (Android Auto)
+### Background mode (default)
+You never open DRIVEDECK in the car. The notification listener it already uses for song stats is kept running by Android, so when Android Auto connects DRIVEDECK:
+
+- starts the trip computer by itself (and stops 3 minutes after you unplug),
+- speaks speed and red-light camera alerts over your music, ducking it the way Waze's voice does,
+- reads out a low fuel reminder with the cheapest servo nearby, estimated from your fill-up log and the drives since,
+- posts a quiet "Drive saved · 12.4 km · 18 min · avg 41 km/h · max 92 km/h" card when you're done.
+
+Needs location "Allow all the time" and battery "Unrestricted". Without them, a notification offers one tap to record instead.
+
+### Optional: tiles on the car screen
 | Screen | What you get |
 |---|---|
 | **Where to?** | Your places as big tiles. The first tile is what you usually do *right now* (learned from your trips), or a place you sent from your laptop. One tap and Waze or Google Maps starts driving. |
@@ -68,9 +78,11 @@ flowchart LR
 
 ## Install
 
-1. **Phone:** install DRIVEDECK from **Google Play** using the internal testing link (Android Auto only lists car apps installed from Play). Updates arrive through the Play Store.
-2. **Setup tab:** enable *Music & messages access* (Samsung: App info → ⋮ → *Allow restricted settings* first), allow location and notifications, and paste your sync token. Your places, music and history come back from sync.
-3. **Android Auto:** Settings → Connected devices → Android Auto → Customise launcher → tick DRIVEDECK.
+1. **Phone:** install [Obtainium](https://github.com/ImranR98/Obtainium), then *Add app* → `https://github.com/LAZARZEC18/DRIVEDECK`. It installs the latest release and keeps it updated.
+2. **Setup tab:** enable *Music & messages access* (Samsung: App info → ⋮ → *Allow restricted settings* first), location *Allow all the time*, battery *Unrestricted*, notifications, and paste your sync token.
+3. Plug in and drive. That's it.
+
+The Google Play internal-testing build (`com.lazarzec.drivedeck`) is only needed for the optional car-screen tiles, because Android Auto lists car apps from Play only.
 
 ## Releases
 
@@ -78,15 +90,16 @@ Every push to `main` runs the tests, then builds:
 
 | Build | Package | Use |
 |---|---|---|
-| `DRIVEDECK-vX.aab` | `com.lazarzec.drivedeck` | Google Play bundle, signed with the upload key. Uploaded to the Play **internal testing** track automatically once `PLAY_SERVICE_ACCOUNT_JSON` is set. |
-| `DRIVEDECK-Dev-vX.apk` | `com.lazarzec.drivedeck.dev` | Side-by-side dev build for the phone screen and emulators. Android Auto won't list it. |
+| `DRIVEDECK-vX.apk` | `com.lazarzec.drivedeck.direct` | The everyday build: minified release, installed and updated by Obtainium. |
+| `DRIVEDECK-vX.aab` | `com.lazarzec.drivedeck` | Google Play bundle (upload key), for the optional car-screen tiles. Built once the upload key secrets exist; uploaded to the internal track when `PLAY_SERVICE_ACCOUNT_JSON` is set. |
+| local `assembleDebug` | `com.lazarzec.drivedeck.dev` | "DRIVEDECK Dev", for development. |
 
 CI secrets: `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_STORE_PASSWORD` (Play upload key), `SIGNING_KEYSTORE_BASE64` (dev key), `PLAY_SERVICE_ACCOUNT_JSON` (optional, Play upload). Locally, the upload key lives in the git-ignored `keystore/` folder with `keystore/upload.properties`.
 
 ## Build & test
 
 ```bash
-./gradlew testDebugUnitTest      # 57 tests: predictor, merge, trip maths, stats, ETA, cameras, FuelWatch, car templates, UI renders
+./gradlew testDebugUnitTest      # 61 tests: predictor, merge, trip maths, stats, ETA, cameras, FuelWatch, car templates, UI renders
 ./gradlew lintDebug              # clean
 ./gradlew assembleDebug          # DRIVEDECK Dev
 ./gradlew bundleRelease          # Play bundle (needs keystore/upload.properties)

@@ -61,9 +61,10 @@ class HomeScreen(carContext: CarContext) : Screen(carContext) {
                 sync.requestSync() // pick up anything sent from the laptop or chat
                 TripService.start(carContext) // every drive gets recorded
                 launch { combine(repo.places, repo.trips, repo.nextUp) { _, _, _ -> }.drop(1).collect { invalidate() } }
-                // Live trip numbers on the More tile, and suggestions that follow the clock.
+                // Suggestions follow the clock. Kept slow on purpose: Android Auto throttles apps
+                // that refresh often, which makes the whole car screen feel laggy.
                 while (true) {
-                    delay(if (TripService.isRunning.value) 5_000 else 60_000)
+                    delay(60_000)
                     invalidate()
                 }
             }
@@ -167,11 +168,12 @@ class HomeScreen(carContext: CarContext) : Screen(carContext) {
     }
 
     private fun navigateTo(place: Place) {
-        Journey.begin(carContext, place)
+        // Hand off to Waze first so the tap feels instant; the bookkeeping happens right after.
         try {
             carContext.startCarApp(Intent(CarContext.ACTION_NAVIGATE, NavLinks.geo(place).toUri()))
         } catch (e: Exception) {
             CarToast.makeText(carContext, "Couldn't open navigation", CarToast.LENGTH_LONG).show()
         }
+        Journey.begin(carContext, place)
     }
 }

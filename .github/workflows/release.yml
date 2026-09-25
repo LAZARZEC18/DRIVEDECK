@@ -2,8 +2,9 @@ name: Release
 
 # Every push to main:
 #   1. runs the tests,
-#   2. builds the Google Play bundle (.aab, signed with the upload key) and a "DRIVEDECK Dev" APK,
-#   3. publishes both as a GitHub Release,
+#   2. builds DRIVEDECK-vX.apk (the fast "direct" build, which Obtainium installs and updates) and,
+#      once the upload key secrets exist, the Google Play bundle (.aab),
+#   3. publishes them as a GitHub Release,
 #   4. uploads the bundle to the Play internal testing track once PLAY_SERVICE_ACCOUNT_JSON is set,
 #      so the phone gets the update from the Play Store automatically.
 on:
@@ -55,10 +56,10 @@ jobs:
       - name: Build
         run: |
           CODE=$((300 + GITHUB_RUN_NUMBER))
-          NAME="1.2.${GITHUB_RUN_NUMBER}"
+          NAME="1.3.${GITHUB_RUN_NUMBER}"
           echo "VERSION_NAME=$NAME" >> "$GITHUB_ENV"
-          ./gradlew assembleDebug -PdeckVersionCode=$CODE -PdeckVersionName=$NAME
-          cp app/build/outputs/apk/debug/app-debug.apk "DRIVEDECK-Dev-v$NAME.apk"
+          ./gradlew assembleDirect -PdeckVersionCode=$CODE -PdeckVersionName=$NAME
+          cp app/build/outputs/apk/direct/app-direct.apk "DRIVEDECK-v$NAME.apk"
           if [ "$HAS_UPLOAD_KEY" = "true" ]; then
             ./gradlew bundleRelease -PdeckVersionCode=$CODE -PdeckVersionName=$NAME
             cp app/build/outputs/bundle/release/app-release.aab "DRIVEDECK-v$NAME.aab"
@@ -72,8 +73,8 @@ jobs:
           body: ${{ github.event.head_commit.message }}
           fail_on_unmatched_files: false
           files: |
+            DRIVEDECK-v${{ env.VERSION_NAME }}.apk
             DRIVEDECK-v${{ env.VERSION_NAME }}.aab
-            DRIVEDECK-Dev-v${{ env.VERSION_NAME }}.apk
 
       - name: Upload to Google Play (internal testing)
         if: env.HAS_PLAY == 'true' && env.HAS_UPLOAD_KEY == 'true'

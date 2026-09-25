@@ -36,7 +36,7 @@ class HubScreen(carContext: CarContext) : Screen(carContext) {
                 launch { MessageHub.conversations.drop(1).collect { invalidate() } }
                 launch { FuelCache.prices.drop(1).collect { invalidate() } }
                 FuelCache.refreshIfStale(carContext, repo.settings.value.fuelType)
-                while (true) { delay(5_000); invalidate() }
+                while (true) { delay(15_000); if (TripService.isRunning.value) invalidate() }
             }
         }
     }

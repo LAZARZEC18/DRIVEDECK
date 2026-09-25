@@ -57,6 +57,7 @@ import com.drivedeck.music.MediaListenerService
 import com.drivedeck.music.YtMusicController
 import com.drivedeck.nav.PhoneNavigator
 import com.drivedeck.sync.SyncManager
+import com.drivedeck.trip.AutoDrive
 
 private const val ANDROID_AUTO_PACKAGE = "com.google.android.projection.gearhead"
 
@@ -85,9 +86,13 @@ fun SetupTab(modifier: Modifier) {
     val syncStatus by sync.status.collectAsStateWithLifecycle()
     val settings by repo.settings.collectAsStateWithLifecycle()
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
+    val bgLocation = remember(tick) { location && AutoDrive.hasBackgroundLocation(ctx) }
+    val unrestricted = remember(tick) { AutoDrive.isUnrestricted(ctx) }
+    val bgPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
 
     val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { tick++ }
     var confirmClear by remember { mutableStateOf(false) }
+    var bgDisclosure by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier.fillMaxSize(),
@@ -95,8 +100,8 @@ fun SetupTab(modifier: Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            val ready = listOf(musicAccess, location, notifs, waze, ytm, syncStatus !is SyncManager.Status.NotSetUp).count { it }
-            ReadinessHeader(ready, 6)
+            val checks = listOf(musicAccess, bgLocation, unrestricted, notifs, waze, ytm, syncStatus !is SyncManager.Status.NotSetUp)
+            ReadinessHeader(checks.count { it }, checks.size)
         }
         item { SectionLabel("SYNC · LAPTOP, PHONE & CHAT") }
         item { SyncCard(sync, syncStatus) }
@@ -105,8 +110,8 @@ fun SetupTab(modifier: Modifier) {
             CheckCard(
                 ok = musicAccess,
                 title = "Music & messages access",
-                body = if (musicAccess) "YouTube Music control, song stats, WhatsApp on the car screen and live traffic ETA are on"
-                else "Enable DRIVEDECK under Notification access. Needed for YouTube Music control, song stats, WhatsApp chats and the live traffic ETA.",
+                body = if (musicAccess) "Background mode, song stats and the live traffic ETA are on"
+                else "Enable DRIVEDECK under Notification access. This is what lets DRIVEDECK notice Android Auto connecting, count your songs and read the traffic ETA.",
                 note = if (musicAccess) null
                 else "Messages are only kept in memory while they're unread, never saved or synced. " +
                     "Samsung: if the switch is greyed out, open App info → ⋮ → Allow restricted settings.",
@@ -118,16 +123,23 @@ fun SetupTab(modifier: Modifier) {
         }
         item {
             CheckCard(
-                ok = location,
-                title = "Location",
+                ok = bgLocation,
+                title = "Location: Allow all the time",
                 body = when {
-                    location -> "Distances on, and no suggestion for where you already are"
-                    coarseOnly -> "Set to Approximate. Turn on Precise so pins and \"you're here\" are accurate."
-                    else -> "Optional. Adds distances and skips suggesting where you already are."
+                    bgLocation -> "Drives record by themselves when Android Auto connects, with DRIVEDECK closed"
+                    coarseOnly -> "Set to Approximate. Turn on Precise, then \"Allow all the time\"."
+                    location -> "Set to \"Only while using\". Choose \"Allow all the time\" so drives record without opening DRIVEDECK."
+                    else -> "Needed to record your drives (speed, averages, distance) and for speed camera alerts."
                 },
+                note = if (bgLocation) null
+                else "DRIVEDECK only uses location while a drive is recording. It's never shared, apart from your drive summaries in your own private sync repo.",
                 actions = when {
-                    location -> emptyList()
+                    bgLocation -> emptyList()
                     coarseOnly -> listOf("Settings" to { openAppInfo(ctx) })
+                    location -> listOf(
+                        "Allow all the time" to { bgDisclosure = true },
+                        "Settings" to { openAppInfo(ctx) },
+                    )
                     else -> listOf(
                         "Allow" to {
                             locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
@@ -138,38 +150,47 @@ fun SetupTab(modifier: Modifier) {
         }
         item {
             CheckCard(
+                ok = unrestricted,
+                title = "Battery: Unrestricted",
+                body = if (unrestricted) "Android won't put DRIVEDECK to sleep, so it's ready every time you plug in"
+                else "Samsung puts apps to sleep. Set DRIVEDECK's battery to Unrestricted so it can start recording by itself.",
+                note = if (unrestricted) null else "App info → Battery → Unrestricted.",
+                actions = if (unrestricted) emptyList() else listOf("App info" to { openAppInfo(ctx) }),
+            )
+        }
+        item {
+            CheckCard(
                 ok = waze, title = "Waze",
-                body = if (waze) "Open it once on the car screen so Android Auto uses it for navigation"
-                else "Receives your destination and drives the route",
+                body = if (waze) "Use it as normal in the car. DRIVEDECK reads its arrival time for your stats."
+                else "Your navigation in the car",
                 actions = if (waze) emptyList() else listOf("Install" to { openStore(ctx, PhoneNavigator.WAZE_PACKAGE) }),
             )
         }
         item {
             CheckCard(
                 ok = ytm, title = "YouTube Music",
-                body = if (ytm) "Ready for the music hub" else "Powers the music hub",
+                body = if (ytm) "Use it as normal in the car. DRIVEDECK counts your songs for the weekly review."
+                else "Your music in the car",
                 actions = if (ytm) emptyList() else listOf("Install" to { openStore(ctx, YtMusicController.YTM_PACKAGE) }),
             )
         }
 
         item {
             CheckCard(
-                ok = notifs, title = "Trip computer notification",
-                body = if (notifs) "Trip computer can run while Waze is on screen"
-                else "Android needs this to keep the trip computer (speed, averages, ETA) running in the background.",
+                ok = notifs, title = "Notifications",
+                body = if (notifs) "Drive summaries and the trip computer can show"
+                else "Android needs this to keep the trip computer running, and to show your \"drive saved\" summary.",
                 actions = if (notifs) emptyList() else listOf("Allow" to { notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS) }),
             )
         }
         item { SectionLabel("YOUR CAR") }
         item { CarSettingsCard(settings) { f -> repo.updateSettings(f) } }
-        item { SectionLabel("SHOW DRIVEDECK IN THE CAR (ONE TIME)") }
+        item { SectionLabel("OPTIONAL · DRIVEDECK ON THE CAR SCREEN") }
         item {
             StepsCard(
                 listOf(
-                    "Install DRIVEDECK from the Google Play Store (the internal testing link). Android Auto only lists car apps that come from Play.",
-                    "Open Android Auto settings: Settings → Connected devices → Android Auto (the button below tries to take you there).",
-                    "Customise launcher → make sure DRIVEDECK is ticked.",
-                    "Plug into the car. DRIVEDECK is in the app launcher. Drag it next to Waze and YouTube Music.",
+                    "You don't need this: background mode works with DRIVEDECK closed.",
+                    "To have the tiles on the car screen anyway: Android Auto settings → Customise launcher → tick DRIVEDECK.",
                 ),
                 button = "Open Android Auto settings" to { openAndroidAuto(ctx) },
             )
@@ -212,11 +233,34 @@ fun SetupTab(modifier: Modifier) {
         }
         item {
             Text(
-                "DRIVEDECK v${versionName(ctx)} · everything stays on your phone.",
+                "DRIVEDECK v${versionName(ctx)} · your data stays on your phone and your own private repo.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
+    }
+
+    if (bgDisclosure) {
+        AlertDialog(
+            onDismissRequest = { bgDisclosure = false },
+            containerColor = DeckColors.Surface,
+            title = { Text("Record drives in the background") },
+            text = {
+                Text(
+                    "DRIVEDECK collects location data to record your drives (speed, averages, distance) and give " +
+                        "speed camera alerts, even when the app is closed or not in use. It only does this while " +
+                        "Android Auto is connected or a trip is running. Location is never sold or shared; drive " +
+                        "summaries only go to your own private sync repo.\n\nOn the next screen choose \"Allow all the time\".",
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    bgDisclosure = false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) bgPermission.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                }) { Text("Continue") }
+            },
+            dismissButton = { TextButton(onClick = { bgDisclosure = false }) { Text("Not now") } },
+        )
     }
 
     if (confirmClear) {
@@ -401,8 +445,19 @@ private fun SyncCard(sync: SyncManager, status: SyncManager.Status) {
 @Composable
 private fun CarSettingsCard(settings: com.drivedeck.data.DeckSettings, update: ((com.drivedeck.data.DeckSettings) -> com.drivedeck.data.DeckSettings) -> Unit) {
     var consumption by remember(settings.litresPer100Km) { mutableStateOf(settings.litresPer100Km.toString()) }
+    var tank by remember(settings.tankLitres) { mutableStateOf(settings.tankLitres.toString().removeSuffix(".0")) }
     Surface(color = DeckColors.Surface, shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SettingSwitch(
+                "Record drives automatically",
+                "Starts when Android Auto connects and stops when you unplug. No need to open DRIVEDECK.",
+                settings.autoRecord,
+            ) { on -> update { it.copy(autoRecord = on) } }
+            SettingSwitch(
+                "Low fuel reminder",
+                "When the tank's probably low, it says so at the start of a drive, with the cheapest servo nearby",
+                settings.fuelReminder,
+            ) { on -> update { it.copy(fuelReminder = on) } }
             Text("Phone navigation app", style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 com.drivedeck.data.NavApp.entries.forEach { app ->
@@ -415,17 +470,11 @@ private fun CarSettingsCard(settings: com.drivedeck.data.DeckSettings, update: (
             }
             Text("In the car, Android Auto uses the navigation app you last opened on the car screen.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Speed camera voice alerts", style = MaterialTheme.typography.titleMedium)
-                    Text("\"Speed camera ahead, 60 zone\" for fixed and red-light cameras on your road",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                androidx.compose.material3.Switch(
-                    checked = settings.cameraAlerts, onCheckedChange = { on -> update { it.copy(cameraAlerts = on) } },
-                    colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = DeckColors.Accent),
-                )
-            }
+            SettingSwitch(
+                "Speed camera voice alerts",
+                "\"Speed camera ahead, 60 zone\" for fixed and red-light cameras on your road",
+                settings.cameraAlerts,
+            ) { on -> update { it.copy(cameraAlerts = on) } }
             OutlinedTextField(
                 consumption, { v -> consumption = v; v.toDoubleOrNull()?.takeIf { it in 2.0..30.0 }?.let { d -> update { it.copy(litresPer100Km = d) } } },
                 label = { Text("Fuel economy (L/100km)") }, singleLine = true,
@@ -433,6 +482,28 @@ private fun CarSettingsCard(settings: com.drivedeck.data.DeckSettings, update: (
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
             )
+            OutlinedTextField(
+                tank, { v -> tank = v; v.toDoubleOrNull()?.takeIf { it in 20.0..150.0 }?.let { d -> update { it.copy(tankLitres = d) } } },
+                label = { Text("Fuel tank (litres)") }, singleLine = true,
+                supportingText = { Text("For the low fuel reminder. Cerato GT: 50 L") },
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
+    }
+}
+
+@Composable
+private fun SettingSwitch(title: String, body: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(12.dp))
+        androidx.compose.material3.Switch(
+            checked = checked, onCheckedChange = onChange,
+            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = DeckColors.Accent),
+        )
     }
 }

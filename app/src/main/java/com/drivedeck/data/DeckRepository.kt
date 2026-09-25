@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Single source of truth for places, music shortcuts, trip history and "next up".
@@ -148,7 +150,6 @@ class DeckRepository private constructor(context: Context) {
     }
 
     private fun save(s: DeckState) {
-        prefs.edit { putString(KEY_STATE, DeckJson.encode(s)) }
         _state.value = s
         _places.value = s.visiblePlaces
         _music.value = s.visibleMusic
@@ -159,7 +160,25 @@ class DeckRepository private constructor(context: Context) {
         _fillUps.value = s.visibleFillUps
         _plays.value = s.plays
         _settings.value = s.settings
+        persist(s)
     }
+
+    // Writing to disk happens on a background thread so taps never wait on it. Bursts of edits
+    // collapse into one write of the newest state.
+    private val writer = Executors.newSingleThreadExecutor { r -> Thread(r, "deck-writer").apply { isDaemon = true } }
+    private val unsaved = AtomicReference<DeckState?>(null)
+
+    private fun persist(s: DeckState) {
+        if (unsaved.getAndSet(s) != null) return // a write is already queued; it'll pick this up
+        writer.execute {
+            val latest = unsaved.getAndSet(null) ?: return@execute
+            prefs.edit(commit = true) { putString(KEY_STATE, DeckJson.encode(latest)) }
+        }
+    }
+
+    /** Waits for queued writes (tests, and before the process might be killed). */
+    @VisibleForTesting
+    internal fun flushWrites() { writer.submit { }.get() }
 
     private fun load(): DeckState {
         prefs.getString(KEY_STATE, null)?.let { raw -> runCatching { DeckJson.decode(raw) }.getOrNull()?.let { return it } }
@@ -195,7 +214,7 @@ class DeckRepository private constructor(context: Context) {
 
         /** Tests only: forget the singleton so each test starts from fresh storage. */
         @VisibleForTesting
-        internal fun resetForTests() { instance = null }
+        internal fun resetForTests() { instance?.flushWrites(); instance = null }
     }
 }
 

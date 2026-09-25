@@ -57,8 +57,19 @@ android {
         }
         release {
             if (hasUploadKey) signingConfig = signingConfigs.getByName("upload")
-            isMinifyEnabled = false
+            // R8 makes the Compose phone UI noticeably smoother and the app smaller.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        // "Direct" = the fast release build, installed from GitHub Releases (Obtainium keeps it
+        // updated). Used for background mode, which doesn't need the Play-only Android Auto
+        // launcher. Own package, so it never clashes with a Play install.
+        create("direct") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".direct"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {

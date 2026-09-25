@@ -5,15 +5,18 @@ import android.service.notification.StatusBarNotification
 import com.drivedeck.data.DeckRepository
 import com.drivedeck.eta.LiveNavEta
 import com.drivedeck.messages.MessageHub
+import com.drivedeck.trip.AutoDrive
 
 /**
  * Android only lets an app see other apps' media sessions (what YouTube Music is playing) and
  * WhatsApp notifications if it holds notification-listener access. DRIVEDECK uses it for
- * four things only:
+ * five things only:
  *  1. controlling YouTube Music from the car screen,
  *  2. counting the songs you play (for your weekly stats),
  *  3. showing WhatsApp chats on the car screen with quick replies,
- *  4. reading the live traffic ETA from Waze / Google Maps' navigation notification.
+ *  4. reading the live traffic ETA from Waze / Google Maps' navigation notification,
+ *  5. background mode: Android keeps this service running, so it notices Android Auto connecting
+ *     and starts the trip computer without DRIVEDECK being opened ([AutoDrive]).
  * Message text stays in memory on the phone. It's never saved or synced.
  */
 class MediaListenerService : NotificationListenerService() {
@@ -34,10 +37,12 @@ class MediaListenerService : NotificationListenerService() {
             }
         }
         runCatching { activeNotifications?.forEach { MessageHub.onPosted(this, it) } }
+        AutoDrive.watch(this)
     }
 
     override fun onListenerDisconnected() {
         watch?.close(); watch = null
+        AutoDrive.unwatch()
         super.onListenerDisconnected()
     }
 

@@ -428,7 +428,7 @@ function addFill() {
   });
 }
 function delFill(id) { save(d => { const x = d.fillUps.find(y => y.id === id); if (x) Object.assign(x, { deleted: true, updatedAt: Date.now() }) }, "Deleted fill-up") }
-function saveSettings() { const s = { fuelType: $("#sFuel").value, litresPer100Km: +$("#sL100").value || 7.4, phoneNavApp: $("#sNav").value, updatedAt: Date.now() }; save(d => { d.settings = s }, "Settings saved") }
+function saveSettings() { const s = { ...deck.settings, fuelType: $("#sFuel").value, litresPer100Km: +$("#sL100").value || 7.4, phoneNavApp: $("#sNav").value, updatedAt: Date.now() }; save(d => { d.settings = s }, "Settings saved") }
 function resetRoutine() { if (confirm("Forget all logged trips everywhere? Places, music, drives and fuel stay.")) save(d => { d.trips = []; d.tripsResetAt = Date.now() }, "Routine reset") }
 function exportJson() { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(deck, null, 1)], { type: "application/json" })); a.download = "drivedeck-" + new Date().toISOString().slice(0, 10) + ".json"; a.click() }
 function disconnect() { ["owner", "repo", "token"].forEach(k => LSset(k, null)); location.reload() }

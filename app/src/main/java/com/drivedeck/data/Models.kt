@@ -237,10 +237,17 @@ data class DeckSettings(
     val phoneNavApp: NavApp = NavApp.WAZE,
     /** Spoken "speed camera ahead" warnings during a trip. */
     val cameraAlerts: Boolean = true,
+    /** Background mode: start recording by itself whenever Android Auto connects. */
+    val autoRecord: Boolean = true,
+    /** Fuel tank size, for the "fuel's getting low" estimate (2020 Cerato GT: 50 L). */
+    val tankLitres: Double = 50.0,
+    /** Spoken "fuel's probably low, cheapest nearby is…" reminder at the start of a drive. */
+    val fuelReminder: Boolean = true,
     val updatedAt: Long = 0,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
-        put("fuelType", fuelType.name); put("litresPer100Km", litresPer100Km); put("phoneNavApp", phoneNavApp.name); put("cameraAlerts", cameraAlerts); put("updatedAt", updatedAt)
+        put("fuelType", fuelType.name); put("litresPer100Km", litresPer100Km); put("phoneNavApp", phoneNavApp.name); put("cameraAlerts", cameraAlerts)
+        put("autoRecord", autoRecord); put("tankLitres", tankLitres); put("fuelReminder", fuelReminder); put("updatedAt", updatedAt)
     }
 
     companion object {
@@ -249,6 +256,9 @@ data class DeckSettings(
             litresPer100Km = o.optDouble("litresPer100Km", 7.4),
             phoneNavApp = runCatching { NavApp.valueOf(o.optString("phoneNavApp")) }.getOrDefault(NavApp.WAZE),
             cameraAlerts = o.optBoolean("cameraAlerts", true),
+            autoRecord = o.optBoolean("autoRecord", true),
+            tankLitres = o.optDouble("tankLitres", 50.0).takeIf { it in 20.0..150.0 } ?: 50.0,
+            fuelReminder = o.optBoolean("fuelReminder", true),
             updatedAt = o.optLong("updatedAt", 0),
         )
     }

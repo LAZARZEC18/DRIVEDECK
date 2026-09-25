@@ -4,6 +4,8 @@
 
     <!-- Smart suggestions: know which saved place you're at, and show distances. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Background mode: record drives when Android Auto connects, with DRIVEDECK closed. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Geocoding, place search, FuelWatch prices, route ETAs and sync. -->
     <uses-permission android:name="android.permission.INTERNET" />

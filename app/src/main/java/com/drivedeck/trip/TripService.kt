@@ -141,6 +141,7 @@ class TripService : Service() {
         }
         carConnection = CarConnection(this).also { it.type.observeForever(carObserver) }
         handler.postDelayed(ticker, 30_000)
+        AutoDrive.cancelPrompt(this)
         // Load speed cameras around here (cached for a week, works offline afterwards).
         scope.launch {
             val here = com.drivedeck.location.LocationHelper.lastKnown(this@TripService)
@@ -229,18 +230,18 @@ class TripService : Service() {
         val a = acc
         if (a != null && a.distanceM >= MIN_SAVE_DISTANCE_M) {
             val end = if (a.lastMovingAt > a.startedAt) minOf(System.currentTimeMillis(), a.lastMovingAt + 60_000) else System.currentTimeMillis()
-            DeckRepository.get(this).addDrive(
-                Drive(
-                    id = UUID.randomUUID().toString(),
-                    startedAt = a.startedAt,
-                    endedAt = end,
-                    distanceM = a.distanceM,
-                    movingMs = a.movingMs,
-                    maxSpeedMps = a.maxSpeedMps,
-                    destination = destination?.name,
-                    arrivedAt = arrivedAt,
-                ),
+            val drive = Drive(
+                id = UUID.randomUUID().toString(),
+                startedAt = a.startedAt,
+                endedAt = end,
+                distanceM = a.distanceM,
+                movingMs = a.movingMs,
+                maxSpeedMps = a.maxSpeedMps,
+                destination = destination?.name,
+                arrivedAt = arrivedAt,
             )
+            DeckRepository.get(this).addDrive(drive)
+            showSummary(drive)
         }
         acc = null
         handler.removeCallbacks(ticker)
@@ -257,6 +258,29 @@ class TripService : Service() {
         if (acc != null) finish()
         scope.cancel()
         super.onDestroy()
+    }
+
+    /** Quiet "drive saved" card, so you see your numbers without opening the app. */
+    private fun showSummary(d: Drive) {
+        val nm = getSystemService(NotificationManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
+        nm.createNotificationChannel(NotificationChannel(SUMMARY_CHANNEL_ID, "Drive summaries", NotificationManager.IMPORTANCE_LOW))
+        val open = PendingIntent.getActivity(
+            this, 2, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val line = "${Fmt.km(d.distanceM / 1000.0)} · ${Fmt.duration(d.durationMs)} · avg ${Fmt.kmh(d.avgSpeedMps * 3.6)} · max ${Fmt.kmh(d.maxSpeedMps * 3.6)}"
+        nm.notify(
+            SUMMARY_ID,
+            NotificationCompat.Builder(this, SUMMARY_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_speed)
+                .setContentTitle(d.destination?.let { "Drive to $it saved" } ?: "Drive saved")
+                .setContentText(line)
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .build(),
+        )
     }
 
     private fun buildNotification(text: String): Notification {
@@ -280,6 +304,8 @@ class TripService : Service() {
 
     companion object {
         private const val CHANNEL_ID = "trip"
+        private const val SUMMARY_CHANNEL_ID = "drive_summary"
+        private const val SUMMARY_ID = 43
         private const val NOTIFICATION_ID = 42
         private const val ACTION_STOP = "com.drivedeck.trip.STOP"
         private const val ACTION_DESTINATION = "com.drivedeck.trip.DESTINATION"
