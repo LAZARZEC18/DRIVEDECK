@@ -121,7 +121,8 @@ object LiveNavEta {
     }
 
     fun onRemoved(sbn: StatusBarNotification) {
-        if (sbn.packageName in PACKAGES) state.value = null
+        // Only the ongoing navigation notification ending means the route is over.
+        if (sbn.packageName in PACKAGES && sbn.notification.flags and Notification.FLAG_ONGOING_EVENT != 0) state.value = null
     }
 
     /** Public for tests. */

@@ -22,6 +22,9 @@
         <package android:name="com.google.android.projection.gearhead" />
         <package android:name="com.google.android.apps.maps" />
         <package android:name="com.whatsapp" />
+        <!-- The two DRIVEDECK apps talk to each other (main app ↔ car-screen app). -->
+        <package android:name="com.lazarzec.drivedeck" />
+        <package android:name="com.lazarzec.drivedeck.direct" />
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
@@ -86,5 +89,13 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Live speed/ETA for the car-screen app. Answers only DRIVEDECK's own car-screen app
+             (checked by signing certificate in LiveProvider). -->
+        <provider
+            android:name=".live.LiveProvider"
+            android:authorities="${applicationId}.live"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
     </application>
 </manifest>

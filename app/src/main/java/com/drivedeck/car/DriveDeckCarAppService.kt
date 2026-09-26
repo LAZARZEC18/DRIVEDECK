@@ -32,5 +32,5 @@ class DriveDeckCarAppService : CarAppService() {
 }
 
 class DriveDeckSession : Session() {
-    override fun onCreateScreen(intent: Intent): Screen = HomeScreen(carContext)
+    override fun onCreateScreen(intent: Intent): Screen = LiveScreen(carContext)
 }

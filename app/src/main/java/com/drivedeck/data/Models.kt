@@ -153,6 +153,9 @@ data class Drive(
     /** Suburbs where the drive started and ended ("Morley" → "Bentley"), when known. */
     val from: String? = null,
     val to: String? = null,
+    /** Waze's estimate when navigation started, and how long it actually took (for your pace). */
+    val wazeMin: Double? = null,
+    val wazeActualMin: Double? = null,
 ) {
     /** "Morley → Bentley", or the destination, or null. */
     val route: String? get() = when {
@@ -173,6 +176,7 @@ data class Drive(
         put("movingMs", movingMs); put("maxSpeedMps", maxSpeedMps)
         destination?.let { put("destination", it) }; arrivedAt?.let { put("arrivedAt", it) }
         from?.let { put("from", it) }; to?.let { put("to", it) }
+        wazeMin?.let { put("wazeMin", it) }; wazeActualMin?.let { put("wazeActualMin", it) }
     }
 
     companion object {
@@ -187,6 +191,8 @@ data class Drive(
             arrivedAt = if (o.has("arrivedAt") && !o.isNull("arrivedAt")) o.getLong("arrivedAt") else null,
             from = o.str("from"),
             to = o.str("to"),
+            wazeMin = if (o.has("wazeMin") && !o.isNull("wazeMin")) o.getDouble("wazeMin") else null,
+            wazeActualMin = if (o.has("wazeActualMin") && !o.isNull("wazeActualMin")) o.getDouble("wazeActualMin") else null,
         )
     }
 }

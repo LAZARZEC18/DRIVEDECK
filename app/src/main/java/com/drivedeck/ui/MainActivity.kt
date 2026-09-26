@@ -8,6 +8,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,7 +49,36 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
-        setContent { DriveDeckTheme { DeckApp() } }
+        val car = com.drivedeck.AppRole.isCarCompanion(this)
+        setContent { DriveDeckTheme { if (car) CarCompanionScreen() else DeckApp() } }
+    }
+}
+
+/** The Play "DRIVEDECK Car" app only drives the car screen; everything else is in the main app. */
+@androidx.compose.runtime.Composable
+private fun CarCompanionScreen() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val main = androidx.compose.runtime.remember {
+        ctx.packageManager.getLaunchIntentForPackage(com.drivedeck.AppRole.MAIN_PACKAGE)
+    }
+    androidx.compose.foundation.layout.Column(
+        androidx.compose.ui.Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+    ) {
+        Text("DRIVEDECK Car", style = MaterialTheme.typography.headlineSmall)
+        androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.height(8.dp))
+        Text(
+            "This part puts DRIVEDECK on your car screen: your ETA next to Waze's, your speed, and a camera map. " +
+                "It reads everything from the main DRIVEDECK app, which does the recording and alerts.\n\n" +
+                "In Android Auto: Customise launcher → tick DRIVEDECK Car.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.height(20.dp))
+        if (main != null) {
+            androidx.compose.material3.Button(onClick = { ctx.startActivity(main) }) { Text("Open DRIVEDECK") }
+        } else {
+            Text("The main DRIVEDECK app isn't installed. Install it from GitHub (Obtainium) first.", color = DeckColors.Warn)
+        }
     }
 }
 

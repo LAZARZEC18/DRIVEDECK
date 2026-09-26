@@ -30,9 +30,14 @@ class CamerasScreen(carContext: CarContext) : Screen(carContext) {
 
     init {
         lifecycleScope.launch {
-            val here = LocationHelper.lastKnown(carContext)
-            cams = if (here == null) emptyList() else SpeedCameras.near(carContext, here.latitude, here.longitude)
-                .map { it to Geo.distanceMeters(here.latitude, here.longitude, it.lat, it.lng) }
+            // Your position: from this app, or from the main DRIVEDECK app (car-screen version).
+            val here = LocationHelper.lastKnown(carContext)?.let { it.latitude to it.longitude }
+                ?: kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    (com.drivedeck.live.LiveClient.fetch(carContext) as? com.drivedeck.live.LiveClient.Result.Ok)?.data
+                        ?.let { d -> if (d.lat != null && d.lng != null) d.lat to d.lng else null }
+                }
+            cams = if (here == null) emptyList() else runCatching { SpeedCameras.near(carContext, here.first, here.second) }.getOrDefault(emptyList())
+                .map { it to Geo.distanceMeters(here.first, here.second, it.lat, it.lng) }
                 .sortedBy { it.second }
             invalidate()
         }

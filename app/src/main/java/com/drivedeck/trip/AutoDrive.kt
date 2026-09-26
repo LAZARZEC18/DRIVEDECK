@@ -51,7 +51,7 @@ object AutoDrive {
 
     /** Call on the main thread. Safe to call repeatedly. */
     fun watch(context: Context) {
-        if (connection != null) return
+        if (connection != null || com.drivedeck.AppRole.isCarCompanion(context)) return
         val app = context.applicationContext
         val obs = Observer<Int> { type ->
             val was = lastType

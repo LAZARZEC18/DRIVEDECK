@@ -78,6 +78,10 @@ class TripService : Service() {
     private val alerted = HashMap<Long, Long>()
     private var lastLoc: Location? = null
     private var startLoc: Location? = null
+    // Waze navigation during this drive: its first estimate and when navigation ended.
+    private var navStartAt: Long? = null
+    private var navStartMin: Int? = null
+    private var navEndAt: Long? = null
     private val signalAlerted = HashMap<String, Long>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -163,6 +167,7 @@ class TripService : Service() {
             if (loc.hasAccuracy()) loc.accuracy else 50f, if (loc.hasSpeed()) loc.speed else null))
 
         checkCameras(loc)
+        trackNavigation()
 
         val dest = destination
         if (dest?.hasCoords == true && arrivedAt == null) {
@@ -195,6 +200,13 @@ class TripService : Service() {
             val limit = c.camera.maxSpeed?.let { ", $it zone" } ?: ""
             Speaker.speak(this, "$what ahead$limit")
         }
+    }
+
+    private fun trackNavigation() {
+        val nav = com.drivedeck.eta.LiveNavEta.fresh()
+        val now = System.currentTimeMillis()
+        if (nav?.minutes != null && navStartAt == null) { navStartAt = now; navStartMin = nav.minutes; navEndAt = null }
+        if (nav == null && navStartAt != null && navEndAt == null) navEndAt = now
     }
 
     /** "Traffic lights ahead" about 10 seconds before you reach them, when you're moving at speed. */
@@ -262,6 +274,8 @@ class TripService : Service() {
                 maxSpeedMps = a.maxSpeedMps,
                 destination = destination?.name,
                 arrivedAt = arrivedAt,
+                wazeMin = navStartMin?.toDouble(),
+                wazeActualMin = navStartAt?.let { s -> navEndAt?.let { e -> (e - s) / 60_000.0 } },
             )
             // Name the suburbs ("Morley → Bentley") in the background, then save.
             val app = applicationContext
@@ -280,6 +294,7 @@ class TripService : Service() {
         acc = null
         handler.removeCallbacks(ticker)
         cameraAhead = null; lastLoc = null; startLoc = null
+        navStartAt = null; navStartMin = null; navEndAt = null
         runCatching { lm.removeUpdates(listener) }
         carConnection?.type?.removeObserver(carObserver)
         state.value = null
@@ -364,13 +379,14 @@ class TripService : Service() {
 
         /** Starts the trip computer if it isn't running. Safe to call repeatedly. */
         fun start(ctx: Context) {
+            if (com.drivedeck.AppRole.isCarCompanion(ctx)) return // the main app records
             if (running.value || !hasLocation(ctx)) return
             runCatching { ContextCompat.startForegroundService(ctx, Intent(ctx, TripService::class.java)) }
         }
 
         /** Sets where you're heading, so the trip records how long it took to get there. */
         fun setDestination(ctx: Context, place: Place) {
-            if (!hasLocation(ctx)) return
+            if (com.drivedeck.AppRole.isCarCompanion(ctx) || !hasLocation(ctx)) return
             val i = Intent(ctx, TripService::class.java).setAction(ACTION_DESTINATION)
                 .putExtra(EXTRA_PLACE_ID, place.id).putExtra(EXTRA_PLACE_NAME, place.name)
             place.lat?.let { i.putExtra(EXTRA_LAT, it) }; place.lng?.let { i.putExtra(EXTRA_LNG, it) }
