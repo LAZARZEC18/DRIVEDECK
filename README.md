@@ -4,7 +4,7 @@
 
 **A driving companion that works in the background: plug into Android Auto, use Waze and YouTube Music as normal, and DRIVEDECK records every drive (speed, averages, max, distance), speaks speed camera and low fuel alerts, counts your songs, and turns it all into weekly stats. Everything syncs between your phone, a laptop dashboard and chat.**
 
-Kotlin · Jetpack Compose · Android for Cars App Library · GitHub-backed sync · 61 automated tests
+Kotlin · Jetpack Compose · Android for Cars App Library · GitHub-backed sync · 65 automated tests
 
 ![DRIVEDECK phone app](docs/screenshots/hero.png)
 
@@ -17,10 +17,11 @@ Kotlin · Jetpack Compose · Android for Cars App Library · GitHub-backed sync 
 ### Background mode (default)
 You never open DRIVEDECK in the car. The notification listener it already uses for song stats is kept running by Android, so when Android Auto connects DRIVEDECK:
 
-- starts the trip computer by itself (and stops 3 minutes after you unplug),
+- starts the trip computer by itself (and stops about a minute after you unplug),
 - speaks speed and red-light camera alerts over your music, ducking it the way Waze's voice does,
+- says "Traffic lights ahead" about 10 seconds before a signalised intersection (from OpenStreetMap, only above 40 km/h, and never on top of a camera alert),
 - reads out a low fuel reminder with the cheapest servo nearby, estimated from your fill-up log and the drives since,
-- posts a quiet "Drive saved · 12.4 km · 18 min · avg 41 km/h · max 92 km/h" card when you're done.
+- posts a quiet "Drive saved · Subiaco → Fremantle" card when you're done, with distance, time, average and max speed, and adds the drive to *Last drives* on the Drive tab.
 
 Needs location "Allow all the time" and battery "Unrestricted". Without them, a notification offers one tap to record instead.
 
@@ -52,12 +53,12 @@ flowchart LR
     P[Phone app<br/>+ Android Auto] <-->|merge on open, after edits,<br/>every 15 min| G[(Private GitHub repo<br/>deck.json)]
     L[Laptop dashboard<br/>GitHub Pages] <--> G
     C[Chat / CLI<br/>tools/deckctl.py] <--> G
-    A[Code change pushed] --> CI[GitHub Actions:<br/>test + signed Play bundle] --> O[Play internal testing<br/>auto-updates app]
+    A[Code change pushed] --> CI[GitHub Actions:<br/>test + signed APK] --> O[GitHub release<br/>Obtainium updates the app]
 ```
 
 - **Data:** one `deck.json` in a *private* repo. Every change is a commit, so there's full history and any change can be undone.
 - **Conflicts:** the phone, the dashboard and the CLI use the same merge rules (`DeckMerge`). Each item keeps its newest edit, deletes are tombstones, and trips, drives and plays are unions. Edit on your laptop while driving and nothing is lost.
-- **App updates:** every push to `main` runs the tests, builds a signed Play bundle and sends it to the Play internal testing track. The Play Store updates the app, keeping your data.
+- **App updates:** every push to `main` runs the tests, builds a signed APK and publishes it as a GitHub release. Obtainium picks it up and updates the app, keeping your data.
 
 ## Architecture
 
@@ -67,7 +68,7 @@ flowchart LR
 | `smart/RoutinePredictor` | Learns your usual destination: time-of-day Gaussian, weekday pool, 45-day recency decay |
 | `trip/` | Trip computer foreground service and GPS maths (`TripAccumulator`: jitter, glitch and tunnel filtering) |
 | `eta/` | Road route (OSRM), personal ETA from your history, live ETA read from the Waze or Maps navigation notification |
-| `cameras/` | Speed and red-light cameras from OpenStreetMap, plus "ahead of you" detection (bearing ± 30°) |
+| `cameras/` | Speed and red-light cameras and traffic lights from OpenStreetMap (clustered, cached for a week), plus "ahead of you" detection (bearing ± 30°) |
 | `fuel/` | FuelWatch RSS client, today and tomorrow |
 | `music/` | YouTube Music control through its media session, recent songs, song-play logging |
 | `messages/` | WhatsApp chats from notifications, replies through WhatsApp's own reply action, text-to-speech |
@@ -75,6 +76,7 @@ flowchart LR
 | `sync/` | GitHub contents API client, pull → merge → push loop, WorkManager background sync |
 | `docs/index.html` | Laptop dashboard, one static file on GitHub Pages |
 | `tools/deckctl.py` | CLI for chat or terminal control: add places, send to car, log fuel, stats |
+| `CrashLog` | Saves crashes, caught errors and Android exit reasons (crash, ANR, low memory) to a report you can copy from Setup, and syncs them to `crashes/` in your data repo |
 
 ## Install
 
@@ -90,7 +92,7 @@ Every push to `main` runs the tests, then builds:
 
 | Build | Package | Use |
 |---|---|---|
-| `DRIVEDECK-vX.apk` | `com.lazarzec.drivedeck.direct` | The everyday build: minified release, installed and updated by Obtainium. |
+| `DRIVEDECK-vX.apk` | `com.lazarzec.drivedeck.direct` | The everyday build: signed release, installed and updated by Obtainium. |
 | `DRIVEDECK-vX.aab` | `com.lazarzec.drivedeck` | Google Play bundle (upload key), for the optional car-screen tiles. Built once the upload key secrets exist; uploaded to the internal track when `PLAY_SERVICE_ACCOUNT_JSON` is set. |
 | local `assembleDebug` | `com.lazarzec.drivedeck.dev` | "DRIVEDECK Dev", for development. |
 
@@ -99,7 +101,7 @@ CI secrets: `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_STORE_PASSWORD` (Play upload key),
 ## Build & test
 
 ```bash
-./gradlew testDebugUnitTest      # 61 tests: predictor, merge, trip maths, stats, ETA, cameras, FuelWatch, car templates, UI renders
+./gradlew testDebugUnitTest      # 65 tests: predictor, merge, trip maths, stats, ETA, cameras, FuelWatch, car templates, UI renders
 ./gradlew lintDebug              # clean
 ./gradlew assembleDebug          # DRIVEDECK Dev
 ./gradlew bundleRelease          # Play bundle (needs keystore/upload.properties)
@@ -108,7 +110,7 @@ CI secrets: `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_STORE_PASSWORD` (Play upload key),
 
 ## Privacy
 
-Full policy: [lazarzec18.github.io/DRIVEDECK/privacy.html](https://lazarzec18.github.io/DRIVEDECK/privacy.html). No accounts and no servers of our own. Data lives on your phone and in *your* private GitHub repo. WhatsApp message text is only held in memory while unread, and is never saved or synced.
+Full policy: [lazarzec18.github.io/DRIVEDECK/privacy.html](https://lazarzec18.github.io/DRIVEDECK/privacy.html). No accounts and no servers of our own. Data lives on your phone and in *your* private GitHub repo. WhatsApp message text is only held in memory while unread, and is never saved or synced. Crash reports hold the error, app version and phone model only, and go to your own data repo.
 
 ## Limits
 

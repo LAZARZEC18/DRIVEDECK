@@ -23,16 +23,17 @@
 <body>
 <main>
 <h1>DRIVE<span>DECK</span> Privacy Policy</h1>
-<p class="muted">Effective 24 September 2026 · App: DRIVEDECK (com.lazarzec.drivedeck) · Developer: Lazar, Perth, Western Australia</p>
+<p class="muted">Effective 26 September 2026 · App: DRIVEDECK (com.lazarzec.drivedeck) · Developer: Lazar, Perth, Western Australia</p>
 
 <p>DRIVEDECK is a personal Android Auto companion app. It has no accounts, no advertising, no analytics and no servers run by the developer. Your data stays on your phone and, if you turn on sync, in a private GitHub repository that <strong>you</strong> own.</p>
 
 <h2>What the app uses and why</h2>
 <table>
 <tr><th>Data</th><th>Why</th><th>Where it goes</th></tr>
-<tr><td>Precise location</td><td>Trip computer (speed, average and max speed, distance), ETA, nearby fuel prices and speed camera alerts. Only used while a trip is running, shown by an ongoing notification.</td><td>Stays on the phone. Finished drive summaries are saved to your sync repo if sync is on.</td></tr>
+<tr><td>Precise location, including in the background</td><td>Trip computer (speed, average and max speed, distance), ETA, nearby fuel prices, and speed camera and traffic light alerts. With "Allow all the time", DRIVEDECK starts a trip by itself when Android Auto connects, even if the app is closed. Location is only read while a trip is running, which is always shown by an ongoing notification, and the trip ends about a minute after Android Auto disconnects.</td><td>Stays on the phone. Finished drive summaries (distance, speeds, times, and the start and end suburb) are saved to your sync repo if sync is on.</td></tr>
 <tr><td>Notifications (with your permission)</td><td>Show WhatsApp messages on the car screen, control YouTube Music, and read the live ETA from Waze or Google Maps.</td><td>Message text is kept in memory only while unread and is never saved or synced. Song titles you play are logged for your weekly stats.</td></tr>
 <tr><td>Places, music shortcuts, fuel fill-ups, settings</td><td>The things you add in the app.</td><td>On the phone, and your private sync repo if sync is on.</td></tr>
+<tr><td>Crash and error reports</td><td>Help find and fix crashes and freezes. A report holds the error, the app version, the phone model and Android version. It contains no location, messages or personal details.</td><td>Saved on the phone (Setup tab, where you can copy or clear them) and, if sync is on, uploaded to your own private sync repo. Never sent anywhere else.</td></tr>
 <tr><td>GitHub access token (optional)</td><td>Syncs your data with your own private repository.</td><td>Stored on the phone only. Sent only to api.github.com.</td></tr>
 </table>
 
@@ -40,7 +41,8 @@
 <ul>
   <li><strong>GitHub</strong> (api.github.com): your own private data repository, only if you set up sync.</li>
   <li><strong>FuelWatch WA</strong> (fuelwatch.wa.gov.au): public fuel prices. Your suburb or location area may be sent.</li>
-  <li><strong>OpenStreetMap services</strong>: Photon (photon.komoot.io) for place search, Overpass for speed camera locations, and OSRM (router.project-osrm.org) for road distance and no-traffic ETA. Search text or coordinates are sent to answer the request.</li>
+  <li><strong>OpenStreetMap services</strong>: Photon (photon.komoot.io) for place search, Overpass for speed camera and traffic light locations, and OSRM (router.project-osrm.org) for road distance and no-traffic ETA. Search text or coordinates are sent to answer the request.</li>
+  <li><strong>Android's built-in geocoder</strong>: turns the start and end of a drive into suburb names. The coordinates are sent to the geocoding service your phone uses (usually Google).</li>
   <li><strong>Waze, Google Maps, YouTube Music and WhatsApp</strong> on your phone, when you open them from DRIVEDECK. Their own privacy policies apply.</li>
 </ul>
 <p>None of these services receive your name, contacts or messages from DRIVEDECK.</p>
