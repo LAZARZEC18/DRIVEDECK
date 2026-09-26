@@ -57,9 +57,8 @@ android {
         }
         release {
             if (hasUploadKey) signingConfig = signingConfigs.getByName("upload")
-            // R8 makes the Compose phone UI noticeably smoother and the app smaller.
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // R8 is off until crash reports confirm the minified build is safe on the phone.
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         // "Direct" = the fast release build, installed from GitHub Releases (Obtainium keeps it

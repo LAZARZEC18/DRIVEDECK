@@ -86,6 +86,7 @@ fun SetupTab(modifier: Modifier) {
     val syncStatus by sync.status.collectAsStateWithLifecycle()
     val settings by repo.settings.collectAsStateWithLifecycle()
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
+    val crashes = remember(tick) { com.drivedeck.CrashLog.read(ctx) }
     val bgLocation = remember(tick) { location && AutoDrive.hasBackgroundLocation(ctx) }
     val unrestricted = remember(tick) { AutoDrive.isUnrestricted(ctx) }
     val bgPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
@@ -102,6 +103,32 @@ fun SetupTab(modifier: Modifier) {
         item {
             val checks = listOf(musicAccess, bgLocation, unrestricted, notifs, waze, ytm, syncStatus !is SyncManager.Status.NotSetUp)
             ReadinessHeader(checks.count { it }, checks.size)
+        }
+        crashes?.let { log ->
+            item {
+                val lastEntry = log.substringAfterLast("=== ", log).lines().take(14).joinToString("\n")
+                Surface(color = DeckColors.Surface, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, DeckColors.Warn.copy(alpha = 0.45f))) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Something went wrong", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            if (syncStatus is SyncManager.Status.NotSetUp) "Tap Copy and paste it to Claude so it can be fixed."
+                            else "The report was sent to your private sync repo, so Claude can read it and fix it.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Surface(color = DeckColors.SurfaceHigh, shape = RoundedCornerShape(10.dp)) {
+                            Text(lastEntry, Modifier.padding(10.dp), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), maxLines = 14)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = {
+                                val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
+                                cm?.setPrimaryClip(android.content.ClipData.newPlainText("DRIVEDECK crash", log.takeLast(8000)))
+                                Toast.makeText(ctx, "Copied", Toast.LENGTH_SHORT).show()
+                            }) { Text("Copy") }
+                            OutlinedButton(onClick = { com.drivedeck.CrashLog.clear(ctx); tick++ }) { Text("Clear") }
+                        }
+                    }
+                }
+            }
         }
         item { SectionLabel("SYNC · LAPTOP, PHONE & CHAT") }
         item { SyncCard(sync, syncStatus) }

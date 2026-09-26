@@ -25,6 +25,10 @@ object Speaker {
         .build()
 
     fun speak(context: Context, text: String) {
+        try { speakNow(context, text) } catch (e: Exception) { com.drivedeck.CrashLog.caught("speaker", e) }
+    }
+
+    private fun speakNow(context: Context, text: String) {
         val app = context.applicationContext
         val t = tts
         if (t != null && ready) {

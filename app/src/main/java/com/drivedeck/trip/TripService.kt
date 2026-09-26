@@ -79,7 +79,9 @@ class TripService : Service() {
     private var lastLoc: Location? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val listener = LocationListener { loc -> onLocation(loc) }
+    private val listener = LocationListener { loc ->
+        try { onLocation(loc) } catch (e: Exception) { com.drivedeck.CrashLog.caught("trip location", e) }
+    }
     private val handler = android.os.Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
         override fun run() {

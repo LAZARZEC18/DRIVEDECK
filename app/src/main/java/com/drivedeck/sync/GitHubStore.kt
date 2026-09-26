@@ -68,6 +68,24 @@ class GitHubStore(
         }
     }
 
+    /** Creates [path] as a new file with plain text (used for crash reports). */
+    suspend fun createText(text: String, message: String) = withContext(Dispatchers.IO) {
+        val payload = JSONObject().apply {
+            put("message", message)
+            put("content", Base64.encodeToString(text.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
+        }.toString()
+        val conn = open(url, "PUT")
+        try {
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+            val code = conn.responseCode
+            if (code !in 200..201) throw IOException(errorText(conn, code))
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     private fun open(u: String, method: String): HttpURLConnection =
         (URL(u).openConnection() as HttpURLConnection).apply {
             requestMethod = method

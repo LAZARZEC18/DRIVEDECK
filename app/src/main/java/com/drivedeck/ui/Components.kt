@@ -140,6 +140,12 @@ fun DeckCard(title: String? = null, trailing: String? = null, content: @Composab
 
 /** Live trip computer card (phone). */
 @Composable
+fun LiveTripSlot(onEnd: () -> Unit) {
+    val live by com.drivedeck.trip.TripService.live.collectAsStateWithLifecycle()
+    live?.let { LiveTripCard(it, onEnd) }
+}
+
+@Composable
 fun LiveTripCard(live: LiveTrip, onEnd: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(20.dp),

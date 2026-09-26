@@ -2,6 +2,7 @@ package com.drivedeck.music
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import com.drivedeck.CrashLog
 import com.drivedeck.data.DeckRepository
 import com.drivedeck.eta.LiveNavEta
 import com.drivedeck.messages.MessageHub
@@ -25,6 +26,11 @@ class MediaListenerService : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        try { connect() } catch (e: Exception) { CrashLog.caught("listener connect", e) }
+        try { AutoDrive.watch(this) } catch (e: Exception) { CrashLog.caught("auto drive watch", e) }
+    }
+
+    private fun connect() {
         val yt = YtMusicController(this)
         val repo = DeckRepository.get(this)
         var lastTitle: String? = null
@@ -37,22 +43,29 @@ class MediaListenerService : NotificationListenerService() {
             }
         }
         runCatching { activeNotifications?.forEach { MessageHub.onPosted(this, it) } }
-        AutoDrive.watch(this)
     }
 
     override fun onListenerDisconnected() {
-        watch?.close(); watch = null
-        AutoDrive.unwatch()
+        runCatching { watch?.close() }; watch = null
+        runCatching { AutoDrive.unwatch() }
         super.onListenerDisconnected()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        MessageHub.onPosted(this, sbn)
-        LiveNavEta.onPosted(sbn)
+        try {
+            MessageHub.onPosted(this, sbn)
+            LiveNavEta.onPosted(sbn)
+        } catch (e: Exception) {
+            CrashLog.caught("notification posted (${sbn.packageName})", e)
+        }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        MessageHub.onRemoved(sbn)
-        LiveNavEta.onRemoved(sbn)
+        try {
+            MessageHub.onRemoved(sbn)
+            LiveNavEta.onRemoved(sbn)
+        } catch (e: Exception) {
+            CrashLog.caught("notification removed", e)
+        }
     }
 }

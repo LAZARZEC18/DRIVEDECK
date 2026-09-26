@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.Observer
+import com.drivedeck.CrashLog
 import com.drivedeck.R
 import com.drivedeck.data.DeckRepository
 import com.drivedeck.fuel.FuelCache
@@ -55,7 +56,9 @@ object AutoDrive {
         val obs = Observer<Int> { type ->
             val was = lastType
             lastType = type
-            if (type == CarConnection.CONNECTION_TYPE_PROJECTION && was != CarConnection.CONNECTION_TYPE_PROJECTION) onCarConnected(app)
+            if (type == CarConnection.CONNECTION_TYPE_PROJECTION && was != CarConnection.CONNECTION_TYPE_PROJECTION) {
+                try { onCarConnected(app) } catch (e: Exception) { CrashLog.caught("car connected", e) }
+            }
             if (type == CarConnection.CONNECTION_TYPE_NOT_CONNECTED) { pending?.cancel(); cancelPrompt(app) }
         }
         connection = CarConnection(app).also { it.type.observeForever(obs) }
@@ -71,7 +74,7 @@ object AutoDrive {
     private fun onCarConnected(ctx: Context) {
         val settings = DeckRepository.get(ctx).settings.value
         pending?.cancel()
-        pending = scope.launch {
+        pending = scope.launch(kotlinx.coroutines.CoroutineExceptionHandler { _, e -> CrashLog.caught("auto drive", e) }) {
             if (settings.autoRecord && TripService.hasLocation(ctx)) {
                 TripService.start(ctx)
                 delay(4_000)

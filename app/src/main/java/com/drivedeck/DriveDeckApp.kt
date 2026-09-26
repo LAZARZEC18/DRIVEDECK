@@ -7,6 +7,8 @@ import com.drivedeck.sync.SyncManager
 class DriveDeckApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        SyncManager.get(this).start()
+        CrashLog.install(this)
+        CrashLog.upload(this)
+        runCatching { SyncManager.get(this).start() }.onFailure { CrashLog.caught("sync start", it) }
     }
 }

@@ -95,7 +95,9 @@ fun PlacesTab(modifier: Modifier, snackbar: SnackbarHostState) {
     val suggestedPlace = places.firstOrNull { it.id == suggestion?.placeId }
 
     val settings by repo.settings.collectAsStateWithLifecycle()
-    val live by TripService.live.collectAsStateWithLifecycle()
+    // Only whether a trip is running: the live numbers are read inside the trip card itself, so
+    // the whole tab doesn't redraw every second while you drive.
+    val tripRunning by TripService.isRunning.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<SearchResult>>(emptyList()) }
     var searching by remember { mutableStateOf(false) }
@@ -147,7 +149,7 @@ fun PlacesTab(modifier: Modifier, snackbar: SnackbarHostState) {
                     }
                 }
             }
-            live?.let { l -> item { LiveTripCard(l) { TripService.stop(ctx) } } }
+            if (tripRunning) item { LiveTripSlot { TripService.stop(ctx) } }
             item {
                 if (suggestedPlace != null) {
                     SuggestionCard(
