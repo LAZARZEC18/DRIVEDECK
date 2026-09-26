@@ -133,6 +133,7 @@ class TripService : Service() {
             )
         } catch (e: Exception) {
             // Android refused (e.g. started from the background). Nothing to record.
+            com.drivedeck.CrashLog.caught("trip startForeground", e)
             stopSelf(); return false
         }
         val now = System.currentTimeMillis()

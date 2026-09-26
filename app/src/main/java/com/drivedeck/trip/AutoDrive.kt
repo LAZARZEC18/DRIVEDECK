@@ -75,10 +75,17 @@ object AutoDrive {
         val settings = DeckRepository.get(ctx).settings.value
         pending?.cancel()
         pending = scope.launch(kotlinx.coroutines.CoroutineExceptionHandler { _, e -> CrashLog.caught("auto drive", e) }) {
-            if (settings.autoRecord && TripService.hasLocation(ctx)) {
-                TripService.start(ctx)
-                delay(4_000)
-                if (!TripService.isRunning.value) showTapToRecord(ctx)
+            if (settings.autoRecord && TripService.hasLocation(ctx) && !TripService.isRunning.value) {
+                // Starting the trip computer from the background only works with location
+                // "Allow all the time" and battery Unrestricted. Trying without them makes Android
+                // kill the app, so ask for a tap instead.
+                if (hasBackgroundLocation(ctx) && isUnrestricted(ctx)) {
+                    TripService.start(ctx)
+                    delay(4_000)
+                    if (!TripService.isRunning.value) showTapToRecord(ctx)
+                } else {
+                    showTapToRecord(ctx)
+                }
             }
             // Give Android Auto, Waze and the music a moment before talking.
             delay(20_000)
