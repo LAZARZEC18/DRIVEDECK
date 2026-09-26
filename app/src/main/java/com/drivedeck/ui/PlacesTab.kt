@@ -150,6 +150,7 @@ fun PlacesTab(modifier: Modifier, snackbar: SnackbarHostState) {
                 }
             }
             if (tripRunning) item { LiveTripSlot { TripService.stop(ctx) } }
+            if (query.isBlank()) item { RecentDrivesCard(repo) }
             item {
                 if (suggestedPlace != null) {
                     SuggestionCard(
@@ -483,5 +484,53 @@ private fun CamerasCard() {
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+
+/** Your last 3 drives, newest first, recorded automatically in the car. */
+@Composable
+private fun RecentDrivesCard(repo: DeckRepository) {
+    val drives by repo.drives.collectAsStateWithLifecycle()
+    val recent = remember(drives) { drives.sortedByDescending { it.startedAt }.take(3) }
+    DeckCard("Last drives", trailing = if (drives.isEmpty()) null else "${drives.size} RECORDED") {
+        if (recent.isEmpty()) {
+            Text(
+                "Plug into Android Auto and drive. Your drives show up here by themselves.",
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        recent.forEachIndexed { i, d ->
+            if (i > 0) androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 10.dp), color = DeckColors.SurfaceHigh)
+            else Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(d.route ?: "Drive", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    Text(
+                        "${whenLabel(d.startedAt)} · ${com.drivedeck.stats.Fmt.duration(d.durationMs)}",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(com.drivedeck.stats.Fmt.km(d.distanceM / 1000.0), style = MaterialTheme.typography.titleMedium, color = DeckColors.Accent)
+                    Text(
+                        "avg ${(d.avgSpeedMps * 3.6).toInt()} · max ${(d.maxSpeedMps * 3.6).toInt()}",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun whenLabel(ms: Long): String {
+    val zone = java.time.ZoneId.systemDefault()
+    val t = java.time.Instant.ofEpochMilli(ms).atZone(zone)
+    val today = java.time.LocalDate.now(zone)
+    val time = t.format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.ENGLISH)).lowercase()
+    return when (t.toLocalDate()) {
+        today -> "Today $time"
+        today.minusDays(1) -> "Yesterday $time"
+        else -> t.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", java.util.Locale.ENGLISH)) + " $time"
     }
 }

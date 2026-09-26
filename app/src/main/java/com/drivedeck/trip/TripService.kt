@@ -77,6 +77,8 @@ class TripService : Service() {
     private var cameraAhead: CameraAhead? = null
     private val alerted = HashMap<Long, Long>()
     private var lastLoc: Location? = null
+    private var startLoc: Location? = null
+    private val signalAlerted = HashMap<String, Long>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val listener = LocationListener { loc ->
@@ -86,7 +88,7 @@ class TripService : Service() {
     private val ticker = object : Runnable {
         override fun run() {
             checkAutoEnd()
-            if (acc != null) { publish(); handler.postDelayed(this, 30_000) }
+            if (acc != null) { publish(); handler.postDelayed(this, 15_000) }
         }
     }
     private val carObserver = Observer<Int> { type ->
@@ -142,18 +144,20 @@ class TripService : Service() {
             runCatching { lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000L, 0f, listener, Looper.getMainLooper()) }
         }
         carConnection = CarConnection(this).also { it.type.observeForever(carObserver) }
-        handler.postDelayed(ticker, 30_000)
+        handler.postDelayed(ticker, 15_000)
         AutoDrive.cancelPrompt(this)
         // Load speed cameras around here (cached for a week, works offline afterwards).
         scope.launch {
-            val here = com.drivedeck.location.LocationHelper.lastKnown(this@TripService)
-            if (here != null) SpeedCameras.near(this@TripService, here.latitude, here.longitude)
+            val here = com.drivedeck.location.LocationHelper.lastKnown(this@TripService) ?: return@launch
+            runCatching { SpeedCameras.near(this@TripService, here.latitude, here.longitude) }
+            runCatching { com.drivedeck.cameras.TrafficSignals.load(this@TripService, here.latitude, here.longitude) }
         }
         return true
     }
 
     private fun onLocation(loc: Location) {
         val a = acc ?: return
+        if (startLoc == null && (!loc.hasAccuracy() || loc.accuracy < 50f)) startLoc = loc
         a.onFix(Fix(loc.time.takeIf { it > 0 } ?: System.currentTimeMillis(), loc.latitude, loc.longitude,
             if (loc.hasAccuracy()) loc.accuracy else 50f, if (loc.hasSpeed()) loc.speed else null))
 
@@ -180,6 +184,7 @@ class TripService : Service() {
         // Look further ahead at higher speed (~20 s of driving, 300–900 m).
         val range = (speed * 20).coerceIn(300.0, 900.0)
         cameraAhead = if (speed > 4) SpeedCameras.ahead(SpeedCameras.cached(), loc.latitude, loc.longitude, heading, range) else null
+        checkSignals(loc, speed, heading)
         val c = cameraAhead ?: return
         val now = System.currentTimeMillis()
         if (now - (alerted[c.camera.id] ?: 0) < 5 * 60_000) return
@@ -189,6 +194,21 @@ class TripService : Service() {
             val limit = c.camera.maxSpeed?.let { ", $it zone" } ?: ""
             Speaker.speak(this, "$what ahead$limit")
         }
+    }
+
+    /** "Traffic lights ahead" about 10 seconds before you reach them, when you're moving at speed. */
+    private fun checkSignals(loc: Location, speed: Double, heading: Double?) {
+        if (speed < 11 || cameraAhead != null) return // under ~40 km/h, or a camera alert has priority
+        if (!DeckRepository.get(this).settings.value.signalAlerts) return
+        val range = (speed * 10).coerceIn(150.0, 320.0)
+        val s = com.drivedeck.cameras.TrafficSignals.ahead(com.drivedeck.cameras.TrafficSignals.cached(), loc.latitude, loc.longitude, heading, range) ?: return
+        // Red-light camera at these lights? The camera alert says it, so stay quiet here.
+        if (SpeedCameras.cached().any { it.redLight && Geo.distanceMeters(it.lat, it.lng, s.signal.lat, s.signal.lng) < 80 }) return
+        val key = String.format(java.util.Locale.US, "%.4f,%.4f", s.signal.lat, s.signal.lng)
+        val now = System.currentTimeMillis()
+        if (now - (signalAlerted[key] ?: 0) < 3 * 60_000) return
+        signalAlerted[key] = now
+        Speaker.speak(this, "Traffic lights ahead")
     }
 
     private fun checkAutoEnd() {
@@ -242,12 +262,23 @@ class TripService : Service() {
                 destination = destination?.name,
                 arrivedAt = arrivedAt,
             )
-            DeckRepository.get(this).addDrive(drive)
-            showSummary(drive)
+            // Name the suburbs ("Morley → Bentley") in the background, then save.
+            val app = applicationContext
+            val start = startLoc; val endLat = a.lastLat; val endLng = a.lastLng
+            saveScope.launch {
+                val named = kotlinx.coroutines.withTimeoutOrNull(8_000) {
+                    drive.copy(
+                        from = start?.let { com.drivedeck.location.LocationHelper.reverseSuburb(app, it.latitude, it.longitude) },
+                        to = if (endLat != null && endLng != null) com.drivedeck.location.LocationHelper.reverseSuburb(app, endLat, endLng) else null,
+                    )
+                } ?: drive
+                DeckRepository.get(app).addDrive(named)
+                showSummary(app, named)
+            }
         }
         acc = null
         handler.removeCallbacks(ticker)
-        cameraAhead = null; lastLoc = null
+        cameraAhead = null; lastLoc = null; startLoc = null
         runCatching { lm.removeUpdates(listener) }
         carConnection?.type?.removeObserver(carObserver)
         state.value = null
@@ -263,21 +294,21 @@ class TripService : Service() {
     }
 
     /** Quiet "drive saved" card, so you see your numbers without opening the app. */
-    private fun showSummary(d: Drive) {
-        val nm = getSystemService(NotificationManager::class.java) ?: return
+    private fun showSummary(ctx: Context, d: Drive) {
+        val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
         nm.createNotificationChannel(NotificationChannel(SUMMARY_CHANNEL_ID, "Drive summaries", NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(
-            this, 2, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            ctx, 2, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val line = "${Fmt.km(d.distanceM / 1000.0)} · ${Fmt.duration(d.durationMs)} · avg ${Fmt.kmh(d.avgSpeedMps * 3.6)} · max ${Fmt.kmh(d.maxSpeedMps * 3.6)}"
         nm.notify(
             SUMMARY_ID,
-            NotificationCompat.Builder(this, SUMMARY_CHANNEL_ID)
+            NotificationCompat.Builder(ctx, SUMMARY_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_speed)
-                .setContentTitle(d.destination?.let { "Drive to $it saved" } ?: "Drive saved")
+                .setContentTitle(d.route?.let { "Drive saved · $it" } ?: "Drive saved")
                 .setContentText(line)
                 .setContentIntent(open)
                 .setAutoCancel(true)
@@ -317,7 +348,9 @@ class TripService : Service() {
         private const val EXTRA_LNG = "lng"
         private const val ARRIVED_RADIUS_M = 150.0
         private const val MIN_SAVE_DISTANCE_M = 300.0
-        private const val AUTO_END_DISCONNECTED_MS = 3 * 60_000L
+        /** Car off / unplugged: finish the drive after a minute (short blips don't end it). */
+        private const val AUTO_END_DISCONNECTED_MS = 60_000L
+        private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private const val AUTO_END_PARKED_MS = 20 * 60_000L
 
         private val state = MutableStateFlow<LiveTrip?>(null)

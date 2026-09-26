@@ -502,6 +502,11 @@ private fun CarSettingsCard(settings: com.drivedeck.data.DeckSettings, update: (
                 "\"Speed camera ahead, 60 zone\" for fixed and red-light cameras on your road",
                 settings.cameraAlerts,
             ) { on -> update { it.copy(cameraAlerts = on) } }
+            SettingSwitch(
+                "Traffic light voice alerts",
+                "\"Traffic lights ahead\" about 10 seconds before lights, when you're doing over 40 km/h",
+                settings.signalAlerts,
+            ) { on -> update { it.copy(signalAlerts = on) } }
             OutlinedTextField(
                 consumption, { v -> consumption = v; v.toDoubleOrNull()?.takeIf { it in 2.0..30.0 }?.let { d -> update { it.copy(litresPer100Km = d) } } },
                 label = { Text("Fuel economy (L/100km)") }, singleLine = true,

@@ -334,7 +334,7 @@ function drivesView() {
   </div>
   <div class="card"><h3>Drive history</h3><div class="tablewrap"><table>
   <tr><th>When</th><th>To</th><th>Distance</th><th>Time</th><th>Avg</th><th>Moving avg</th><th>Max</th><th>Arrived in</th><th>Fuel ≈</th></tr>
-  ${ds.map(d => { const t = d.endedAt - d.startedAt, km = d.distanceM / 1000; return `<tr><td>${date(d.startedAt)} ${time(d.startedAt)}</td><td>${esc(d.destination || "—")}</td><td>${fkm(km)}</td><td>${dur(t)}</td>
+  ${ds.map(d => { const t = d.endedAt - d.startedAt, km = d.distanceM / 1000; return `<tr><td>${date(d.startedAt)} ${time(d.startedAt)}</td><td>${esc(d.from && d.to && d.from !== d.to ? d.from + " → " + d.to : (d.destination || d.to || "—"))}</td><td>${fkm(km)}</td><td>${dur(t)}</td>
     <td>${fkmh(t ? km / (t / 3.6e6) : 0)}</td><td>${fkmh(d.movingMs ? km / (d.movingMs / 3.6e6) : 0)}</td><td>${fkmh(d.maxSpeedMps * 3.6)}</td>
     <td>${d.arrivedAt ? dur(d.arrivedAt - d.startedAt) : "—"}</td><td>${ap ? money(km * (deck.settings.litresPer100Km || 7.4) / 100 * ap / 100) : "—"}</td></tr>` }).join("") || '<tr><td colspan="9" class="empty">No drives yet. They record automatically in the car.</td></tr>'}
   </table></div></div>`;

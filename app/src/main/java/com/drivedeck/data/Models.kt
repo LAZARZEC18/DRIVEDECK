@@ -150,7 +150,18 @@ data class Drive(
     val destination: String? = null,
     /** When you got within ~150 m of the destination, if you navigated to one. */
     val arrivedAt: Long? = null,
+    /** Suburbs where the drive started and ended ("Morley" → "Bentley"), when known. */
+    val from: String? = null,
+    val to: String? = null,
 ) {
+    /** "Morley → Bentley", or the destination, or null. */
+    val route: String? get() = when {
+        from != null && to != null && from != to -> "$from → $to"
+        destination != null -> "To $destination"
+        to != null -> "Around $to"
+        else -> null
+    }
+
     val durationMs: Long get() = (endedAt - startedAt).coerceAtLeast(0)
     /** Average over the whole trip, like a car's trip computer. */
     val avgSpeedMps: Double get() = if (durationMs > 0) distanceM / (durationMs / 1000.0) else 0.0
@@ -161,6 +172,7 @@ data class Drive(
         put("id", id); put("startedAt", startedAt); put("endedAt", endedAt); put("distanceM", distanceM)
         put("movingMs", movingMs); put("maxSpeedMps", maxSpeedMps)
         destination?.let { put("destination", it) }; arrivedAt?.let { put("arrivedAt", it) }
+        from?.let { put("from", it) }; to?.let { put("to", it) }
     }
 
     companion object {
@@ -173,6 +185,8 @@ data class Drive(
             maxSpeedMps = o.optDouble("maxSpeedMps", 0.0),
             destination = o.str("destination"),
             arrivedAt = if (o.has("arrivedAt") && !o.isNull("arrivedAt")) o.getLong("arrivedAt") else null,
+            from = o.str("from"),
+            to = o.str("to"),
         )
     }
 }
@@ -237,6 +251,8 @@ data class DeckSettings(
     val phoneNavApp: NavApp = NavApp.WAZE,
     /** Spoken "speed camera ahead" warnings during a trip. */
     val cameraAlerts: Boolean = true,
+    /** Spoken "traffic lights ahead" as you approach signals at speed. */
+    val signalAlerts: Boolean = true,
     /** Background mode: start recording by itself whenever Android Auto connects. */
     val autoRecord: Boolean = true,
     /** Fuel tank size, for the "fuel's getting low" estimate (2020 Cerato GT: 50 L). */
@@ -246,7 +262,7 @@ data class DeckSettings(
     val updatedAt: Long = 0,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
-        put("fuelType", fuelType.name); put("litresPer100Km", litresPer100Km); put("phoneNavApp", phoneNavApp.name); put("cameraAlerts", cameraAlerts)
+        put("fuelType", fuelType.name); put("litresPer100Km", litresPer100Km); put("phoneNavApp", phoneNavApp.name); put("cameraAlerts", cameraAlerts); put("signalAlerts", signalAlerts)
         put("autoRecord", autoRecord); put("tankLitres", tankLitres); put("fuelReminder", fuelReminder); put("updatedAt", updatedAt)
     }
 
@@ -256,6 +272,7 @@ data class DeckSettings(
             litresPer100Km = o.optDouble("litresPer100Km", 7.4),
             phoneNavApp = runCatching { NavApp.valueOf(o.optString("phoneNavApp")) }.getOrDefault(NavApp.WAZE),
             cameraAlerts = o.optBoolean("cameraAlerts", true),
+            signalAlerts = o.optBoolean("signalAlerts", true),
             autoRecord = o.optBoolean("autoRecord", true),
             tankLitres = o.optDouble("tankLitres", 50.0).takeIf { it in 20.0..150.0 } ?: 50.0,
             fuelReminder = o.optBoolean("fuelReminder", true),
